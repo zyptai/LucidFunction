@@ -1,0 +1,25 @@
+{
+  "name": "zyptailucid",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/functions/*.js",
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"No tests yet...\""
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "@azure/identity": "^4.4.1",
+    "@azure/keyvault-secrets": "^4.8.0",
+    "@azure/openai": "^1.0.0-beta.12",
+    "@azure/search-documents": "^12.1.0",
+    "@azure/storage-blob": "^12.25.0",
+    "@azure/storage-file-share": "^12.25.0",
+    "adm-zip": "^0.5.16",
+    "axios": "^0.21.4",
+    "form-data": "^4.0.0"
+  },
+  "devDependencies": {
+    "azure-functions-core-tools": "^4.x"
+  }
+}

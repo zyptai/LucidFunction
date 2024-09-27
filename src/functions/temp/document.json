@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "pages": [
+    {
+      "id": "page0",
+      "title": "SAP Implementation Flow",
+      "shapes": [
+        {
+          "id": "shape0",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 100,
+            "y": 100,
+            "w": 120,
+            "h": 80
+          },
+          "text": "Start SAP Implementation"
+        },
+        {
+          "id": "shape1",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 100,
+            "y": 250,
+            "w": 120,
+            "h": 80
+          },
+          "text": "Requirements Gathering"
+        },
+        {
+          "id": "shape2",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 100,
+            "y": 400,
+            "w": 120,
+            "h": 80
+          },
+          "text": "System Configuration"
+        },
+        {
+          "id": "shape3",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 100,
+            "y": 550,
+            "w": 120,
+            "h": 80
+          },
+          "text": "Testing"
+        },
+        {
+          "id": "shape4",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 100,
+            "y": 700,
+            "w": 120,
+            "h": 80
+          },
+          "text": "Go-Live"
+        }
+      ],
+      "lines": [
+        {
+          "id": "line0",
+          "type": "straight",
+          "endpoint1": {
+            "shapeId": "shape0",
+            "x": 0.5,
+            "y": 1
+          },
+          "endpoint2": {
+            "shapeId": "shape1",
+            "x": 0.5,
+            "y": 0
+          }
+        },
+        {
+          "id": "line1",
+          "type": "straight",
+          "endpoint1": {
+            "shapeId": "shape1",
+            "x": 0.5,
+            "y": 1
+          },
+          "endpoint2": {
+            "shapeId": "shape2",
+            "x": 0.5,
+            "y": 0
+          }
+        },
+        {
+          "id": "line2",
+          "type": "straight",
+          "endpoint1": {
+            "shapeId": "shape2",
+            "x": 0.5,
+            "y": 1
+          },
+          "endpoint2": {
+            "shapeId": "shape3",
+            "x": 0.5,
+            "y": 0
+          }
+        },
+        {
+          "id": "line3",
+          "type": "straight",
+          "endpoint1": {
+            "shapeId": "shape3",
+            "x": 0.5,
+            "y": 1
+          },
+          "endpoint2": {
+            "shapeId": "shape4",
+            "x": 0.5,
+            "y": 0
+          }
+        }
+      ]
+    }
+  ]
+}
