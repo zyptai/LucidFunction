@@ -483,52 +483,33 @@ async function downloadFromAzureFileShare() {
 }
 
 // Function to submit the form.lucid file to Lucid API
+// Modify submitToLucidApi to return the Edit URL and View URL
 async function submitToLucidApi() {
     try {
-        // Download form.lucid from Azure File Share to temporary file system
         const lucidFilePath = await downloadFromAzureFileShare();
-
-        // Read the `form.lucid` file
         const fileStream = fs.createReadStream(lucidFilePath);
-
-        // Create a FormData object for the file upload
         const form = new FormData();
-        form.append('file', fileStream, {
-            filename: 'form.lucid',
-            contentType: 'x-application/vnd.lucid.standardImport',
-        });
-
-        // Additional parameters for document creation
-        form.append('title', 'Test Document with Lucid File');
+        form.append('file', fileStream, { filename: 'form.lucid', contentType: 'x-application/vnd.lucid.standardImport' });
+        form.append('title', 'Generated Chart');
         form.append('product', 'lucidchart');
 
-        // Submit the file to the Lucid API
         const createDocResponse = await axios.post(`${config.lucidApiBaseUrl}/documents`, form, {
             headers: {
                 'Authorization': `Bearer ${config.lucidApiKey}`,
                 'Lucid-Api-Version': '1',
                 'Lucid-User': config.lucidUser,
-                ...form.getHeaders(),  // Include multipart form-data headers
+                ...form.getHeaders(),
             },
         });
 
-        // Log the response
-        console.log('Document created successfully.');
-        console.log('Document ID:', createDocResponse.data.documentId);
-        console.log('Edit URL:', createDocResponse.data.editUrl);
-        console.log('View URL:', createDocResponse.data.viewUrl);
-
+        // Return the edit and view URLs
+        return {
+            editUrl: createDocResponse.data.editUrl,
+            viewUrl: createDocResponse.data.viewUrl
+        };
     } catch (error) {
         console.error('Error during Lucid API document upload:', error);
-        if (error.response) {
-            console.error('Response status:', error.response.status);
-            console.error('Response headers:', error.response.headers);
-            console.error('Response data:', JSON.stringify(error.response.data, null, 2));
-        } else if (error.request) {
-            console.error('No response received:', error.request);
-        } else {
-            console.error('Error message:', error.message);
-        }
+        throw error;
     }
 }
 
@@ -540,7 +521,7 @@ async function lucidChartFunction(req) {
         logEnvironmentVariables();
         validateEnvironmentVariables();
 
-        const HARDCODED_QUERY = "Explain the phases of an SAP implementation project";
+        const HARDCODED_QUERY = req.body.prompt || "Explain the phases of an SAP implementation project";  // Taking prompt from the request body
 
         // Execute the OpenAI query
         const response = await getOpenAIResponse(HARDCODED_QUERY);
@@ -557,12 +538,14 @@ async function lucidChartFunction(req) {
         // Zip the document.json and rename it to form.lucid
         await zipFile();
 
-        // Submit the form.lucid file to Lucid API
-        await submitToLucidApi();
+        // Submit the form.lucid file to Lucid API and get the edit URL
+        const lucidResponse = await submitToLucidApi();
 
         const responseMessage = {
-            message: 'OpenAI query, file upload, zipping, renaming, and Lucid API submission completed successfully.',
-            generatedContent: generatedContent
+            message: 'Chart created successfully.',
+            generatedContent: generatedContent,
+            editUrl: lucidResponse.editUrl,  // Returning the Edit URL to the Word add-on
+            viewUrl: lucidResponse.viewUrl   // Optionally return the View URL
         };
 
         return {
