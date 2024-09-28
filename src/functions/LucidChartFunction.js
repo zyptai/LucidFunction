@@ -502,6 +502,9 @@ async function submitToLucidApi() {
             },
         });
 
+        // Log the entire response from the Lucid API for debugging
+        console.log('Lucid API response:', JSON.stringify(createDocResponse.data, null, 2));
+
         // Return the edit and view URLs
         return {
             editUrl: createDocResponse.data.editUrl,
