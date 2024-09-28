@@ -3,9 +3,9 @@ const { OpenAIClient, AzureKeyCredential } = require("@azure/openai");
 const { ShareServiceClient } = require("@azure/storage-file-share");
 const fs = require('fs');
 const path = require('path');
-const AdmZip = require('adm-zip');  // Adding adm-zip for zipping files
-const axios = require('axios');  // Adding axios for HTTP requests to Lucid API
-const FormData = require('form-data');  // Adding FormData for multipart/form-data submission
+const AdmZip = require('adm-zip');
+const axios = require('axios');
+const FormData = require('form-data');
 
 // Configuration for Azure OpenAI, Azure File Share, and Lucid API
 const config = {
@@ -23,372 +23,373 @@ const config = {
 const tempDirectory = process.env.TEMP || '/tmp';  // On Windows, it's D:/local/Temp by default
 
 // The content of your document.json
+// Define the document structure based on the swimlane flowchart example
 const documentData = {
-    "version": 1,
-    "pages": [
-      {
-        "id": "mainPage",
-        "title": "Swimlanes with Bound Shapes",
-        "shapes": [
-          {
-            "id": "swimlane",
-            "type": "swimLanes",
-            "boundingBox": {
-              "x": 140,
-              "y": 200,
-              "w": 960,  // Total width matching the sum of lane widths (320 * 3)
-              "h": 960   // Total height set to 960
-            },
-            "style": {
-              "stroke": {
-                "color": "#062327ff",
-                "width": 5
-              }
-            },
-            "magnetize": true,
-            "vertical": false,  // Horizontal arrangement of lanes
-            "titleBar": {
-              "height": 40,
-              "verticalText": true
-            },
-            "lanes": [
-              {
-                "id": "phaseOne",  // Unique ID for Phase One
-                "title": "<span style='color: #ffffff; font-weight: bold; font-size: 14pt;'>Phase One</span>",
-                "width": 320,
-                "headerFill": "#062327ff",
-                "laneFill": "#ffffff"
-              },
-              {
-                "id": "phaseTwo",  // Unique ID for Phase Two
-                "title": "<span style='color: #ffffff; font-weight: bold; font-size: 14pt;'>Phase Two</span>",
-                "width": 320,
-                "headerFill": "#062327ff",
-                "laneFill": "#ffffff"
-              },
-              {
-                "id": "phaseThree",  // Unique ID for Phase Three
-                "title": "<span style='color: #ffffff; font-weight: bold; font-size: 14pt;'>Phase Three</span>",
-                "width": 320,
-                "headerFill": "#062327ff",
-                "laneFill": "#ffffff"
-              }
-            ]
+  "version": 1,
+  "pages": [
+    {
+      "id": "mainPage",
+      "title": "Swimlanes with Bound Shapes",
+      "shapes": [
+        {
+          "id": "swimlane",
+          "type": "swimLanes",
+          "boundingBox": {
+            "x": 140,
+            "y": 200,
+            "w": 960,  // Total width matching the sum of lane widths (320 * 3)
+            "h": 960   // Total height set to 960
           },
-          // Shapes within Phase One
-          {
-            "id": "startRect",
-            "type": "rectangle",
-            "boundingBox": {
-              "x": 200,  // Centered within Phase One
-              "y": 260,  // Below the title bar with padding
-              "w": 200,
-              "h": 80
-            },
-            "laneId": "phaseOne",  // Assigning to Phase One
-            "style": {
-              "stroke": {
-                "color": "#000000",
-                "width": 2
-              },
-              "fill": {
-                "type": "color",
-                "color": "#00FF00"
-              }
-            },
-            "text": "Start"
+          "style": {
+            "stroke": {
+              "color": "#062327ff",
+              "width": 5
+            }
           },
-          {
-            "id": "processRect1",
-            "type": "rectangle",
-            "boundingBox": {
-              "x": 200,
-              "y": 360,
-              "w": 200,
-              "h": 80
-            },
-            "laneId": "phaseOne",  // Assigning to Phase One
-            "style": {
-              "stroke": {
-                "color": "#000000",
-                "width": 2
-              },
-              "fill": {
-                "type": "color",
-                "color": "#FFFF00"
-              }
-            },
-            "text": "Process Phase One"
+          "magnetize": true,
+          "vertical": false,  // Horizontal arrangement of lanes
+          "titleBar": {
+            "height": 40,
+            "verticalText": true
           },
-          // Shapes within Phase Two
-          {
-            "id": "processRect2",
-            "type": "rectangle",
-            "boundingBox": {
-              "x": 520,  // Centered within Phase Two
-              "y": 260,
-              "w": 200,
-              "h": 80
+          "lanes": [
+            {
+              "id": "phaseOne",  // Unique ID for Phase One
+              "title": "<span style='color: #ffffff; font-weight: bold; font-size: 14pt;'>Phase One</span>",
+              "width": 320,
+              "headerFill": "#062327ff",
+              "laneFill": "#ffffff"
             },
-            "laneId": "phaseTwo",  // Assigning to Phase Two
-            "style": {
-              "stroke": {
-                "color": "#000000",
-                "width": 2
-              },
-              "fill": {
-                "type": "color",
-                "color": "#FFA500"
-              }
+            {
+              "id": "phaseTwo",  // Unique ID for Phase Two
+              "title": "<span style='color: #ffffff; font-weight: bold; font-size: 14pt;'>Phase Two</span>",
+              "width": 320,
+              "headerFill": "#062327ff",
+              "laneFill": "#ffffff"
             },
-            "text": "Process Phase Two"
+            {
+              "id": "phaseThree",  // Unique ID for Phase Three
+              "title": "<span style='color: #ffffff; font-weight: bold; font-size: 14pt;'>Phase Three</span>",
+              "width": 320,
+              "headerFill": "#062327ff",
+              "laneFill": "#ffffff"
+            }
+          ]
+        },
+        // Shapes within Phase One
+        {
+          "id": "startRect",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 200,  // Centered within Phase One
+            "y": 260,  // Below the title bar with padding
+            "w": 200,
+            "h": 80
           },
-          {
-            "id": "decisionDiamond",
-            "type": "diamond",
-            "boundingBox": {
-              "x": 520,
-              "y": 360,
-              "w": 120,
-              "h": 80
+          "laneId": "phaseOne",  // Assigning to Phase One
+          "style": {
+            "stroke": {
+              "color": "#000000",
+              "width": 2
             },
-            "laneId": "phaseTwo",  // Assigning to Phase Two
-            "style": {
-              "stroke": {
-                "color": "#000000",
-                "width": 2
-              },
-              "fill": {
-                "type": "color",
-                "color": "#FFCC00"
-              }
-            },
-            "text": "Decision?"
+            "fill": {
+              "type": "color",
+              "color": "#00FF00"
+            }
           },
-          // Shapes within Phase Three
-          {
-            "id": "endRect",
-            "type": "rectangle",
-            "boundingBox": {
-              "x": 840,  // Centered within Phase Three
-              "y": 260,
-              "w": 200,
-              "h": 80
-            },
-            "laneId": "phaseThree",  // Assigning to Phase Three
-            "style": {
-              "stroke": {
-                "color": "#000000",
-                "width": 2
-              },
-              "fill": {
-                "type": "color",
-                "color": "#008000"
-              }
-            },
-            "text": "End Phase Three"
+          "text": "Start"
+        },
+        {
+          "id": "processRect1",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 200,
+            "y": 360,
+            "w": 200,
+            "h": 80
           },
-          // Additional Shape in Phase Two
-          {
-            "id": "reviewRect",
-            "type": "rectangle",
-            "boundingBox": {
-              "x": 520,  // Centered within Phase Two
-              "y": 460,  // Positioned below existing shapes with padding
-              "w": 200,
-              "h": 80
+          "laneId": "phaseOne",  // Assigning to Phase One
+          "style": {
+            "stroke": {
+              "color": "#000000",
+              "width": 2
             },
-            "laneId": "phaseTwo",  // Assigning to Phase Two
-            "style": {
-              "stroke": {
-                "color": "#000000",
-                "width": 2
-              },
-              "fill": {
-                "type": "color",
-                "color": "#ADD8E6"
-              }
-            },
-            "text": "Review"
+            "fill": {
+              "type": "color",
+              "color": "#FFFF00"
+            }
           },
-          // "Yes" Outcome in Phase Two
-          {
-            "id": "yesRect",
-            "type": "rectangle",
-            "boundingBox": {
-              "x": 480,  // Positioned to the left within Phase Two
-              "y": 460,
-              "w": 200,
-              "h": 80
-            },
-            "laneId": "phaseTwo",  // Assigning to Phase Two
-            "style": {
-              "stroke": {
-                "color": "#000000",
-                "width": 2
-              },
-              "fill": {
-                "type": "color",
-                "color": "#00FFFF"
-              }
-            },
-            "text": "Yes Outcome"
+          "text": "Process Phase One"
+        },
+        // Shapes within Phase Two
+        {
+          "id": "processRect2",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 520,  // Centered within Phase Two
+            "y": 260,
+            "w": 200,
+            "h": 80
           },
-          // "No" Outcome in Phase Two
-          {
-            "id": "noRect",
-            "type": "rectangle",
-            "boundingBox": {
-              "x": 600,  // Positioned to the right within Phase Two
-              "y": 460,
-              "w": 200,
-              "h": 80
+          "laneId": "phaseTwo",  // Assigning to Phase Two
+          "style": {
+            "stroke": {
+              "color": "#000000",
+              "width": 2
             },
-            "laneId": "phaseTwo",  // Assigning to Phase Two
-            "style": {
-              "stroke": {
-                "color": "#000000",
-                "width": 2
-              },
-              "fill": {
-                "type": "color",
-                "color": "#FF6666"
-              }
+            "fill": {
+              "type": "color",
+              "color": "#FFA500"
+            }
+          },
+          "text": "Process Phase Two"
+        },
+        {
+          "id": "decisionDiamond",
+          "type": "diamond",
+          "boundingBox": {
+            "x": 520,
+            "y": 360,
+            "w": 120,
+            "h": 80
+          },
+          "laneId": "phaseTwo",  // Assigning to Phase Two
+          "style": {
+            "stroke": {
+              "color": "#000000",
+              "width": 2
             },
-            "text": "No Outcome"
+            "fill": {
+              "type": "color",
+              "color": "#FFCC00"
+            }
+          },
+          "text": "Decision?"
+        },
+        // Shapes within Phase Three
+        {
+          "id": "endRect",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 840,  // Centered within Phase Three
+            "y": 260,
+            "w": 200,
+            "h": 80
+          },
+          "laneId": "phaseThree",  // Assigning to Phase Three
+          "style": {
+            "stroke": {
+              "color": "#000000",
+              "width": 2
+            },
+            "fill": {
+              "type": "color",
+              "color": "#008000"
+            }
+          },
+          "text": "End Phase Three"
+        },
+        // Additional Shape in Phase Two
+        {
+          "id": "reviewRect",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 520,  // Centered within Phase Two
+            "y": 460,  // Positioned below existing shapes with padding
+            "w": 200,
+            "h": 80
+          },
+          "laneId": "phaseTwo",  // Assigning to Phase Two
+          "style": {
+            "stroke": {
+              "color": "#000000",
+              "width": 2
+            },
+            "fill": {
+              "type": "color",
+              "color": "#ADD8E6"
+            }
+          },
+          "text": "Review"
+        },
+        // "Yes" Outcome in Phase Two
+        {
+          "id": "yesRect",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 480,  // Positioned to the left within Phase Two
+            "y": 460,
+            "w": 200,
+            "h": 80
+          },
+          "laneId": "phaseTwo",  // Assigning to Phase Two
+          "style": {
+            "stroke": {
+              "color": "#000000",
+              "width": 2
+            },
+            "fill": {
+              "type": "color",
+              "color": "#00FFFF"
+            }
+          },
+          "text": "Yes Outcome"
+        },
+        // "No" Outcome in Phase Two
+        {
+          "id": "noRect",
+          "type": "rectangle",
+          "boundingBox": {
+            "x": 600,  // Positioned to the right within Phase Two
+            "y": 460,
+            "w": 200,
+            "h": 80
+          },
+          "laneId": "phaseTwo",  // Assigning to Phase Two
+          "style": {
+            "stroke": {
+              "color": "#000000",
+              "width": 2
+            },
+            "fill": {
+              "type": "color",
+              "color": "#FF6666"
+            }
+          },
+          "text": "No Outcome"
+        }
+      ],
+      "lines": [
+        // Connector from Start to Process Phase One
+        {
+          "id": "connector1",
+          "lineType": "straight",
+          "stroke": {
+            "color": "#000000",
+            "width": 2
+          },
+          "endpoint1": {
+            "type": "shapeEndpoint",
+            "style": "none",
+            "shapeId": "startRect",
+            "position": { "x": 0.5, "y": 1 }  // Bottom center of Start
+          },
+          "endpoint2": {
+            "type": "shapeEndpoint",
+            "style": "arrow",
+            "shapeId": "processRect1",
+            "position": { "x": 0.5, "y": 0 }  // Top center of Process Phase One
           }
-        ],
-        "lines": [
-          // Connector from Start to Process Phase One
-          {
-            "id": "connector1",
-            "lineType": "straight",
-            "stroke": {
-              "color": "#000000",
-              "width": 2
-            },
-            "endpoint1": {
-              "type": "shapeEndpoint",
-              "style": "none",
-              "shapeId": "startRect",
-              "position": { "x": 0.5, "y": 1 }  // Bottom center of Start
-            },
-            "endpoint2": {
-              "type": "shapeEndpoint",
-              "style": "arrow",
-              "shapeId": "processRect1",
-              "position": { "x": 0.5, "y": 0 }  // Top center of Process Phase One
-            }
+        },
+        // Connector from Process Phase One to Process Phase Two
+        {
+          "id": "connector2",
+          "lineType": "straight",
+          "stroke": {
+            "color": "#000000",
+            "width": 2
           },
-          // Connector from Process Phase One to Process Phase Two
-          {
-            "id": "connector2",
-            "lineType": "straight",
-            "stroke": {
-              "color": "#000000",
-              "width": 2
-            },
-            "endpoint1": {
-              "type": "shapeEndpoint",
-              "style": "none",
-              "shapeId": "processRect1",
-              "position": { "x": 1, "y": .5 }
-            },
-            "endpoint2": {
-              "type": "shapeEndpoint",
-              "style": "arrow",
-              "shapeId": "processRect2",
-              "position": { "x": 0, "y": 0.5 }
-            }
+          "endpoint1": {
+            "type": "shapeEndpoint",
+            "style": "none",
+            "shapeId": "processRect1",
+            "position": { "x": 1, "y": .5 }
           },
-          // Connector from Process Phase Two to Decision
-          {
-            "id": "connector3",
-            "lineType": "straight",
-            "stroke": {
-              "color": "#000000",
-              "width": 2
-            },
-            "endpoint1": {
-              "type": "shapeEndpoint",
-              "style": "none",
-              "shapeId": "processRect2",
-              "position": { "x": 1, "y": 0.5 }  // Right center of Process Phase Two
-            },
-            "endpoint2": {
-              "type": "shapeEndpoint",
-              "style": "arrow",
-              "shapeId": "decisionDiamond",
-              "position": { "x": 0, "y": 0.5 }  // Left center of Decision
-            }
-          },
-          // Connector from Decision to End Phase Three
-          {
-            "id": "connector4",
-            "lineType": "straight",
-            "stroke": {
-              "color": "#000000",
-              "width": 2
-            },
-            "endpoint1": {
-              "type": "shapeEndpoint",
-              "style": "none",
-              "shapeId": "decisionDiamond",
-              "position": { "x": 0.5, "y": 1 }  // Bottom center of Decision
-            },
-            "endpoint2": {
-              "type": "shapeEndpoint",
-              "style": "arrow",
-              "shapeId": "endRect",
-              "position": { "x": 0.5, "y": 0 }  // Top center of End Phase Three
-            }
-          },
-          // Connector from Decision to Yes Outcome
-          {
-            "id": "connector5",
-            "lineType": "straight",
-            "stroke": {
-              "color": "#000000",
-              "width": 2
-            },
-            "endpoint1": {
-              "type": "shapeEndpoint",
-              "style": "none",
-              "shapeId": "decisionDiamond",
-              "position": { "x": 0.75, "y": 1 }  // Bottom right of Decision?
-            },
-            "endpoint2": {
-              "type": "shapeEndpoint",
-              "style": "arrow",
-              "shapeId": "yesRect",
-              "position": { "x": 0, "y": 0.5 }  // Left center of Yes Outcome
-            }
-          },
-          // Connector from Decision to No Outcome
-          {
-            "id": "connector6",
-            "lineType": "straight",
-            "stroke": {
-              "color": "#000000",
-              "width": 2
-            },
-            "endpoint1": {
-              "type": "shapeEndpoint",
-              "style": "none",
-              "shapeId": "decisionDiamond",
-              "position": { "x": 0.25, "y": 1 }  // Bottom left of Decision?
-            },
-            "endpoint2": {
-              "type": "shapeEndpoint",
-              "style": "arrow",
-              "shapeId": "noRect",
-              "position": { "x": 1, "y": 0.5 }  // Right center of No Outcome
-            }
+          "endpoint2": {
+            "type": "shapeEndpoint",
+            "style": "arrow",
+            "shapeId": "processRect2",
+            "position": { "x": 0, "y": 0.5 }
           }
-        ]
-      }
-    ]
-  }
+        },
+        // Connector from Process Phase Two to Decision
+        {
+          "id": "connector3",
+          "lineType": "straight",
+          "stroke": {
+            "color": "#000000",
+            "width": 2
+          },
+          "endpoint1": {
+            "type": "shapeEndpoint",
+            "style": "none",
+            "shapeId": "processRect2",
+            "position": { "x": 1, "y": 0.5 }  // Right center of Process Phase Two
+          },
+          "endpoint2": {
+            "type": "shapeEndpoint",
+            "style": "arrow",
+            "shapeId": "decisionDiamond",
+            "position": { "x": 0, "y": 0.5 }  // Left center of Decision
+          }
+        },
+        // Connector from Decision to End Phase Three
+        {
+          "id": "connector4",
+          "lineType": "straight",
+          "stroke": {
+            "color": "#000000",
+            "width": 2
+          },
+          "endpoint1": {
+            "type": "shapeEndpoint",
+            "style": "none",
+            "shapeId": "decisionDiamond",
+            "position": { "x": 0.5, "y": 1 }  // Bottom center of Decision
+          },
+          "endpoint2": {
+            "type": "shapeEndpoint",
+            "style": "arrow",
+            "shapeId": "endRect",
+            "position": { "x": 0.5, "y": 0 }  // Top center of End Phase Three
+          }
+        },
+        // Connector from Decision to Yes Outcome
+        {
+          "id": "connector5",
+          "lineType": "straight",
+          "stroke": {
+            "color": "#000000",
+            "width": 2
+          },
+          "endpoint1": {
+            "type": "shapeEndpoint",
+            "style": "none",
+            "shapeId": "decisionDiamond",
+            "position": { "x": 0.75, "y": 1 }  // Bottom right of Decision?
+          },
+          "endpoint2": {
+            "type": "shapeEndpoint",
+            "style": "arrow",
+            "shapeId": "yesRect",
+            "position": { "x": 0, "y": 0.5 }  // Left center of Yes Outcome
+          }
+        },
+        // Connector from Decision to No Outcome
+        {
+          "id": "connector6",
+          "lineType": "straight",
+          "stroke": {
+            "color": "#000000",
+            "width": 2
+          },
+          "endpoint1": {
+            "type": "shapeEndpoint",
+            "style": "none",
+            "shapeId": "decisionDiamond",
+            "position": { "x": 0.25, "y": 1 }  // Bottom left of Decision?
+          },
+          "endpoint2": {
+            "type": "shapeEndpoint",
+            "style": "arrow",
+            "shapeId": "noRect",
+            "position": { "x": 1, "y": 0.5 }  // Right center of No Outcome
+          }
+        }
+      ]
+    }
+  ]
+}
 
 function logEnvironmentVariables() {
     console.log('Logging environment variables:');
@@ -423,10 +424,10 @@ async function zipFile() {
     const zip = new AdmZip();
     zip.addFile('document.json', Buffer.from(JSON.stringify(documentData, null, 2), 'utf-8'));
 
-    // Write zip to local file system temporarily
-    const zipPath = path.join(__dirname, 'form.zip');
+    // Write zip to the temporary directory instead of __dirname
+    const zipPath = path.join(tempDirectory, 'form.zip');  // Use tempDirectory
     zip.writeZip(zipPath);
-    console.log('form.zip created successfully');
+    console.log('form.zip created successfully in temporary directory');
 
     // Read zip content
     const zipContent = fs.readFileSync(zipPath);
@@ -452,12 +453,12 @@ async function zipFile() {
     console.log('form.zip deleted after renaming to form.lucid');
 }
 
-// Function to submit the form.lucid file to Lucid API
 // Function to download the form.lucid file from Azure File Share to the temporary filesystem
 async function downloadFromAzureFileShare() {
     const shareServiceClient = ShareServiceClient.fromConnectionString(config.azureFileConnectionString);
     const shareClient = shareServiceClient.getShareClient(config.shareName);
     const rootDirectoryClient = shareClient.rootDirectoryClient;
+    console.log('Submitting form to Lucid API...');
     
     // Get the file client for form.lucid
     const fileClientLucid = rootDirectoryClient.getFileClient('form.lucid');
@@ -466,7 +467,7 @@ async function downloadFromAzureFileShare() {
     const downloadResponse = await fileClientLucid.download();
 
     // Set the path to the temporary file system for Azure Functions
-    const lucidFilePath = path.join(tempDirectory, 'form.lucid');
+    const lucidFilePath = path.join(tempDirectory, 'form.lucid');  // Use tempDirectory
     
     // Save the file in the Azure Function's temporary filesystem
     const writableStream = fs.createWriteStream(lucidFilePath);
@@ -483,7 +484,6 @@ async function downloadFromAzureFileShare() {
 }
 
 // Function to submit the form.lucid file to Lucid API
-// Modify submitToLucidApi to return the Edit URL and View URL
 async function submitToLucidApi() {
     try {
         const lucidFilePath = await downloadFromAzureFileShare();
@@ -508,8 +508,8 @@ async function submitToLucidApi() {
             viewUrl: createDocResponse.data.viewUrl
         };
     } catch (error) {
-        console.error('Error during Lucid API document upload:', error);
-        throw error;
+      console.error('Error during Lucid API document upload:', error.response?.data || error.message);
+      throw error;
     }
 }
 
