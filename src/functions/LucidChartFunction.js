@@ -544,17 +544,17 @@ async function lucidChartFunction(req) {
         // Submit the form.lucid file to Lucid API and get the edit URL
         const lucidResponse = await submitToLucidApi();
 
+        // Modify the response to include only the status and editUrl
         const responseMessage = {
-            message: 'Chart created successfully.',
-            generatedContent: generatedContent,
-            editUrl: lucidResponse.editUrl,  // Returning the Edit URL to the Word add-on
-            viewUrl: lucidResponse.viewUrl   // Optionally return the View URL
-        };
+          status: 'Chart created successfully.',  // Status message
+          editUrl: lucidResponse.editUrl,         // Edit URL from Lucid API
+      };
 
-        return {
-            status: 200,
-            body: responseMessage,
-        };
+      return {
+        status: 200,
+        headers: { "Content-Type": "application/json" },  // Ensure JSON content type
+        body: JSON.stringify(responseMessage)  // Explicitly stringify the response
+    };
 
     } catch (error) {
         console.error('An error occurred during function execution:', error);
