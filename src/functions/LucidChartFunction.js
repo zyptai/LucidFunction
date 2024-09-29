@@ -8,108 +8,61 @@ const { app } = require('@azure/functions');
 const openAIService = require('../services/openAIService');
 const { performHybridSearch } = require('../services/searchService');
 const { generateLucidChartData } = require('../services/lucidChartGenerator');
-const { uploadFileToAzureFileShare, downloadFileFromAzureFileShare } = require('../services/azureStorageService');
+const { generateChartStructureDescription } = require('../services/chartStructureGenerator');
+const { processLucidChartFile } = require('../services/fileOperations');
 const { submitToLucidApi } = require('../services/lucidApiService');
-const path = require('path');
-const fs = require('fs');
-const AdmZip = require('adm-zip');
-
-// Use Azure Function's temporary directory
-const tempDirectory = process.env.TEMP || '/tmp';
 
 /**
  * Azure Function to handle the Lucid chart generation process using RAG pipeline
- * @param {Object} req - The HTTP request object
+ * @param {Object} request - The HTTP request object
+ * @param {Object} context - The Azure Functions context object
  * @returns {Object} HTTP response object with status and body
  */
-const lucidChartFunction = async function(req) {
-    console.log('LucidChartFunction triggered.');
+const lucidChartFunction = async function(request, context) {
+    context.log('LucidChartFunction triggered.');
 
     try {
-        const userPrompt = req.body.prompt || "Explain the phases of an SAP implementation project";
-        console.log(`Received prompt: ${userPrompt}`);
+        const body = await readRequestBody(request);
+        context.log('Parsed request body:', JSON.stringify(body).substring(0, 50));
 
-        // Generate embeddings for the user prompt
-        console.log('Generating embeddings...');
+        // Ensure the request body exists and has a prompt
+        if (!body || !body.prompt) {
+            throw new Error("Missing 'prompt' in the request body");
+        }
+
+        const userPrompt = body.prompt;
+        context.log(`Received prompt: ${userPrompt.substring(0, 50)}`);
+
+        // Step 1: Generate embeddings for the user prompt
+        context.log('Generating embeddings...');
         const embedding = await openAIService.generateEmbeddings(userPrompt);
+        context.log('Embeddings generated successfully.');
 
-        // Perform hybrid search
-        console.log('Performing hybrid search...');
+        // Step 2: Perform hybrid search
+        context.log('Performing hybrid search...');
         const searchResults = await performHybridSearch(userPrompt, embedding);
+        context.log('Hybrid search completed.');
 
-        // Prepare messages for OpenAI
-        const messages = [
-            { role: "system", content: "You are an AI assistant tasked with creating a Lucid chart for SAP implementation processes." },
-            { role: "user", content: userPrompt },
-            { role: "assistant", content: `Here are some relevant documents: ${searchResults.content.slice(0, 3000)}...` }
-        ];
+        // Step 3: Generate chart structure description
+        context.log('Generating chart structure description...');
+        const processDescription = await generateChartStructureDescription(userPrompt, searchResults);
+        context.log('Chart structure description generated.');
+        context.log('Process Description:', processDescription);
 
-        // Define the function schema for the RAG pipeline
-        const lucidChartSchema = {
-            name: "generate_lucid_chart_data",
-            description: "Generates data for a Lucid chart based on SAP implementation processes",
-            parameters: {
-                type: "object",
-                properties: {
-                    phases: {
-                        type: "array",
-                        items: {
-                            type: "object",
-                            properties: {
-                                name: { type: "string" },
-                                description: { type: "string" },
-                                steps: {
-                                    type: "array",
-                                    items: { type: "string" }
-                                }
-                            }
-                        }
-                    }
-                },
-                required: ["phases"]
-            }
-        };
+        // Step 4: Generate Lucid chart data
+        context.log('Generating Lucid chart data...');
+        const chartData = await generateLucidChartData(chartStructureDescription);
+        context.log('Lucid chart data generated successfully.');
 
-        // Call OpenAI with function calling
-        console.log('Calling Azure OpenAI...');
-        const openAIResponse = await openAIService.getOpenAIResponse(messages, lucidChartSchema);
+        // Step 5: Process and upload Lucid chart file
+        context.log('Processing Lucid chart file...');
+        await processLucidChartFile(chartData);
+        context.log('Lucid chart file processed and uploaded successfully.');
 
-        // Generate Lucid chart data
-        console.log('Generating Lucid chart data...');
-        const chartData = await generateLucidChartData(userPrompt);
-
-        // Perform file operations
-        console.log('Performing file operations...');
-        
-        // Step 1: Create document.json
-        const documentPath = path.join(tempDirectory, 'document.json');
-        fs.writeFileSync(documentPath, JSON.stringify(chartData, null, 2));
-        console.log('document.json created successfully');
-
-        // Step 2: Zip document.json to form.zip
-        const zip = new AdmZip();
-        zip.addLocalFile(documentPath);
-        const zipPath = path.join(tempDirectory, 'form.zip');
-        zip.writeZip(zipPath);
-        console.log('form.zip created successfully');
-
-        // Step 3: Rename form.zip to form.lucid
-        const lucidPath = path.join(tempDirectory, 'form.lucid');
-        fs.renameSync(zipPath, lucidPath);
-        console.log('form.zip renamed to form.lucid');
-
-        // Upload form.lucid to Azure File Share
-        const lucidContent = fs.readFileSync(lucidPath);
-        await uploadFileToAzureFileShare('form.lucid', lucidContent, 'application/octet-stream');
-        console.log('form.lucid uploaded to Azure File Share');
-
-        // Submit to Lucid API
-        console.log('Submitting to Lucid API...');
-        const lucidResponse = await submitToLucidApi(lucidPath);
-
-        // Clean up temporary files
-        fs.unlinkSync(documentPath);
-        fs.unlinkSync(lucidPath);
+        // Step 6: Submit to Lucid API
+        context.log('Submitting to Lucid API...');
+        const lucidResponse = await submitToLucidApi();
+        context.log('Submission to Lucid API successful.');
 
         // Prepare response
         const responseMessage = {
@@ -120,20 +73,38 @@ const lucidChartFunction = async function(req) {
             sourceUrl: searchResults.fileUrl
         };
 
-        return {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(responseMessage)
-        };
+        context.log('Function execution completed successfully.');
+        return { body: JSON.stringify(responseMessage) };
 
     } catch (error) {
-        console.error('An error occurred during function execution:', error);
+        context.log(`An error occurred during function execution: ${error.message}`);
+        context.log('Error stack trace:', error.stack);
         return {
             status: 500,
             body: JSON.stringify({ error: `An error occurred: ${error.message}` })
         };
     }
 };
+
+/**
+ * Reads and parses the request body from a ReadableStream
+ * @param {Object} request - The HTTP request object
+ * @returns {Promise<Object>} Parsed request body
+ */
+async function readRequestBody(request) {
+    const reader = request.body.getReader();
+    let result = '';
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += new TextDecoder().decode(value);
+    }
+    try {
+        return JSON.parse(result);
+    } catch (error) {
+        throw new Error(`Failed to parse request body as JSON: ${error.message}`);
+    }
+}
 
 app.http('LucidChartFunction', {
     methods: ['POST'],

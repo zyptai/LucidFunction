@@ -20,8 +20,16 @@ function initializeOpenAIClient() {
 
 async function generateEmbeddings(text) {
     if (!openAIClient) initializeOpenAIClient();
+    if (!text || typeof text !== 'string') {
+        throw new Error("Invalid input for embedding generation. Expected a non-empty string.");
+    }
+    console.log(`Generating embeddings for text: "${text.substring(0, 50)}..."`);
     try {
         const result = await openAIClient.getEmbeddings(AZURE_OPENAI_EMBEDDING_DEPLOYMENT, [text]);
+        if (!result.data || result.data.length === 0) {
+            throw new Error("No embedding generated from the API.");
+        }
+        console.log("Embeddings generated successfully.");
         return result.data[0].embedding;
     } catch (error) {
         console.error("Error in generating embeddings:", error);
@@ -29,42 +37,26 @@ async function generateEmbeddings(text) {
     }
 }
 
-async function getOpenAIResponse(messages, functionSchema = null) {
+async function getOpenAIResponse(messages) {
     if (!openAIClient) initializeOpenAIClient();
     try {
-        let options = {
-            temperature: 0.7,
-            max_tokens: 800,
-        };
-
-        if (functionSchema) {
-            options.functions = [functionSchema];
-            options.function_call = { name: functionSchema.name };
-        }
+        console.log("Sending request to OpenAI API...");
+        console.log("Messages:", JSON.stringify(messages).substring(0, 50));
 
         const result = await openAIClient.getChatCompletions(
             AZURE_OPENAI_COMPLETIONS_DEPLOYMENT,
-            messages,
-            options
+            messages
         );
 
+        console.log("Received response from OpenAI API...");
+
         if (result.choices && result.choices.length > 0) {
-            const choice = result.choices[0];
-            if (choice.message.function_call) {
-                return {
-                    function_call: {
-                        name: choice.message.function_call.name,
-                        arguments: JSON.parse(choice.message.function_call.arguments)
-                    }
-                };
-            } else {
-                return choice.message;
-            }
+            return result.choices[0].message;
         } else {
             throw new Error("No response generated from Azure OpenAI");
         }
     } catch (error) {
-        console.error("Error in Azure OpenAI call:", error);
+        console.error("Error in Azure OpenAI call:", error.message);
         throw error;
     }
 }
