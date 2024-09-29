@@ -52,34 +52,6 @@ async function submitToLucidApi(filePath) {
     }
 }
 
-/**
- * Retrieves metadata for a Lucid document
- * @param {string} documentId - The ID of the Lucid document
- * @returns {Promise<Object>} The document metadata
- * @throws {Error} If the retrieval fails
- */
-async function getLucidDocumentMetadata(documentId) {
-    if (!LUCID_API_KEY || !LUCID_USER) {
-        throw new Error("Lucid API credentials are not set. Check your environment variables.");
-    }
-
-    try {
-        const response = await axios.get(`${LUCID_API_BASE_URL}/documents/${documentId}`, {
-            headers: {
-                'Authorization': `Bearer ${LUCID_API_KEY}`,
-                'Lucid-Api-Version': '1',
-                'Lucid-User': LUCID_USER,
-            },
-        });
-
-        return response.data;
-    } catch (error) {
-        console.error('Error retrieving Lucid document metadata:', error.response?.data || error.message);
-        throw error;
-    }
-}
-
 module.exports = {
-    submitToLucidApi,
-    getLucidDocumentMetadata
+    submitToLucidApi
 };
