@@ -2,81 +2,88 @@
 // Copyright (c) 2024 ZyptAI, tim.barrow@zyptai.com
 // This software is proprietary to ZyptAI.
 
-// Service for interacting with Azure OpenAI for SAP implementation assistance
+// Azure OpenAI service for natural language processing in SAP implementation processes
 
 const { OpenAIClient, AzureKeyCredential } = require("@azure/openai");
 
-// Configuration for Azure OpenAI
+// Use environment variables directly
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 const AZURE_OPENAI_COMPLETIONS_DEPLOYMENT = process.env.AZURE_OPENAI_COMPLETIONS_DEPLOYMENT;
 const AZURE_OPENAI_EMBEDDING_DEPLOYMENT = process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT;
 
-let openAiClient;
+let openAIClient;
 
 /**
- * Initializes the OpenAI client
+ * Initializes the Azure OpenAI client
  * @throws {Error} If the Azure OpenAI configuration is incomplete
  */
-function initializeOpenAiClient() {
+function initializeOpenAIClient() {
     if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
         throw new Error("Azure OpenAI configuration is incomplete. Check your environment variables.");
     }
-    openAiClient = new OpenAIClient(AZURE_OPENAI_ENDPOINT, new AzureKeyCredential(AZURE_OPENAI_API_KEY));
+    openAIClient = new OpenAIClient(AZURE_OPENAI_ENDPOINT, new AzureKeyCredential(AZURE_OPENAI_API_KEY));
 }
 
 /**
  * Generates embeddings for the given text
  * @param {string} text - The text to generate embeddings for
- * @returns {number[]} The generated embedding
+ * @returns {Promise<number[]>} The generated embedding vector
  * @throws {Error} If the embedding generation fails
  */
 async function generateEmbeddings(text) {
-    if (!openAiClient) initializeOpenAiClient();
-    
-    const startTime = Date.now();
+    if (!openAIClient) initializeOpenAIClient();
+
     try {
-        const result = await openAiClient.getEmbeddings(AZURE_OPENAI_EMBEDDING_DEPLOYMENT, [text]);
-        const endTime = Date.now();
-        console.log(`Embedding generation time: ${endTime - startTime} ms`);
-        console.log(`Embedding tokens: ${result.usage.totalTokens}`);
+        const result = await openAIClient.getEmbeddings(AZURE_OPENAI_EMBEDDING_DEPLOYMENT, [text]);
         return result.data[0].embedding;
     } catch (error) {
-        console.error("Error in embedding generation:", error);
+        console.error("Error in generating embeddings:", error);
         throw error;
     }
 }
 
 /**
- * Calls Azure OpenAI with the given messages and function definition
- * @param {Array} messages - The conversation messages
- * @param {Object} functionDefinition - The function definition for structured output
- * @returns {Object} The response from OpenAI
- * @throws {Error} If the API call fails or no response is generated
+ * Calls Azure OpenAI for chat completions
+ * @param {Array} messages - The messages to send to OpenAI
+ * @param {Object} [functionSchema] - Optional function schema for function calling
+ * @returns {Promise<Object>} The response from Azure OpenAI
+ * @throws {Error} If the OpenAI call fails
  */
-async function callAzureOpenAI(messages, functionDefinition) {
-    if (!openAiClient) initializeOpenAiClient();
+async function callAzureOpenAI(messages, functionSchema = null) {
+    if (!openAIClient) initializeOpenAIClient();
 
     try {
-        const startTime = Date.now();
-        const response = await openAiClient.getChatCompletions(
+        let options = {
+            temperature: 0.7,
+            max_tokens: 800,
+        };
+
+        if (functionSchema) {
+            options.functions = [functionSchema];
+            options.function_call = { name: functionSchema.name };
+        }
+
+        const result = await openAIClient.getChatCompletions(
             AZURE_OPENAI_COMPLETIONS_DEPLOYMENT,
             messages,
-            {
-                functions: [functionDefinition],
-                functionCall: { name: functionDefinition.name },
-            }
+            options
         );
-        const endTime = Date.now();
 
-        console.log(`OpenAI API call time: ${endTime - startTime} ms`);
-        console.log(`OpenAI API call tokens: ${response.usage.totalTokens}`);
-
-        if (response.choices && response.choices.length > 0) {
-            const functionCallResult = response.choices[0].message.functionCall;
-            return JSON.parse(functionCallResult.arguments);
+        if (result.choices && result.choices.length > 0) {
+            const choice = result.choices[0];
+            if (choice.message.function_call) {
+                return {
+                    function_call: {
+                        name: choice.message.function_call.name,
+                        arguments: JSON.parse(choice.message.function_call.arguments)
+                    }
+                };
+            } else {
+                return choice.message;
+            }
         } else {
-            throw new Error("No response generated from OpenAI");
+            throw new Error("No response generated from Azure OpenAI");
         }
     } catch (error) {
         console.error("Error in Azure OpenAI call:", error);
@@ -84,4 +91,7 @@ async function callAzureOpenAI(messages, functionDefinition) {
     }
 }
 
-module.exports = { generateEmbeddings, callAzureOpenAI };
+module.exports = {
+    generateEmbeddings,
+    callAzureOpenAI
+};

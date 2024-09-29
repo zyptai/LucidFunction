@@ -8,7 +8,10 @@ const { app } = require('@azure/functions');
 const { generateEmbeddings, callAzureOpenAI } = require('../services/openAIService');
 const { performHybridSearch } = require('../services/searchService');
 const { generateLucidChartData } = require('../services/lucidChartGenerator');
-const { uploadToAzureFileShare, zipAndRename, submitToLucidApi } = require('../services/fileOperations');
+const { uploadFileToAzureFileShare, downloadFileFromAzureFileShare } = require('../services/azureStorageService');
+const { submitToLucidApi } = require('../services/lucidApiService');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * Azure Function to handle the Lucid chart generation process using RAG pipeline
@@ -73,17 +76,25 @@ async function lucidChartFunction(req) {
 
         // Perform file operations
         console.log('Performing file operations...');
-        await uploadToAzureFileShare('document.json', JSON.stringify(chartData));
-        await zipAndRename();
+        await uploadFileToAzureFileShare('document.json', JSON.stringify(chartData));
+        
+        // Download the file, assuming it's been processed to .lucid format
+        const lucidFileContent = await downloadFileFromAzureFileShare('document.lucid');
+        const tempFilePath = path.join(__dirname, 'temp_document.lucid');
+        fs.writeFileSync(tempFilePath, lucidFileContent);
 
         // Submit to Lucid API
         console.log('Submitting to Lucid API...');
-        const lucidResponse = await submitToLucidApi();
+        const lucidResponse = await submitToLucidApi(tempFilePath);
+
+        // Clean up temporary file
+        fs.unlinkSync(tempFilePath);
 
         // Prepare response
         const responseMessage = {
             status: 'Chart created successfully.',
             editUrl: lucidResponse.editUrl,
+            viewUrl: lucidResponse.viewUrl,
             sourceDocument: searchResults.filename,
             sourceUrl: searchResults.fileUrl
         };
