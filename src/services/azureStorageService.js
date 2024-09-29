@@ -21,7 +21,7 @@ async function uploadFileToAzureFileShare(fileName, content, contentType = 'appl
     if (!connectionString) {
         throw new Error("Azure Storage connection string is not set. Check your environment variables.");
     }
-
+    console.log("I made it to uploadfiletoazurefileshare")
     const shareServiceClient = ShareServiceClient.fromConnectionString(connectionString);
     const shareClient = shareServiceClient.getShareClient(shareName);
     
@@ -30,7 +30,7 @@ async function uploadFileToAzureFileShare(fileName, content, contentType = 'appl
 
     const fileClient = shareClient.rootDirectoryClient.getFileClient(fileName);
     const bufferContent = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf-8');
-    
+    console.log("Is this where the problem is")
     await fileClient.uploadData(bufferContent, {
         contentSettings: { contentType }
     });

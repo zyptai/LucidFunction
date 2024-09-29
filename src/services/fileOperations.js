@@ -2,34 +2,99 @@
 // Copyright (c) 2024 ZyptAI, tim.barrow@zyptai.com
 // This software is proprietary to ZyptAI.
 
-// Service for handling file operations related to SAP implementation charts
+// Service for handling file operations related to Lucid chart generation in SAP implementation processes
+
+const { uploadFileToAzureFileShare, downloadFileFromAzureFileShare } = require('./azureStorageService');
+const AdmZip = require('adm-zip');
+const fs = require('fs');
+const path = require('path');
+
+// Use Azure Function's temporary directory
+const tempDirectory = process.env.TEMP || '/tmp';
 
 /**
- * Uploads a file to Azure File Share
- * @param {string} fileName - Name of the file to upload
- * @param {string} content - Content of the file
+ * Creates a document.json file with the provided content
+ * @param {Object} content - The content to be written to document.json
+ * @throws {Error} If the file creation fails
  */
-async function uploadToAzureFileShare(fileName, content) {
-    console.log(`Uploading ${fileName} to Azure File Share...`);
-    // TODO: Implement file upload logic
+async function createDocumentJson(content) {
+    const documentPath = path.join(tempDirectory, 'document.json');
+    fs.writeFileSync(documentPath, JSON.stringify(content, null, 2));
+    console.log('document.json created successfully in temporary directory');
 }
 
 /**
- * Zips and renames the chart file
+ * Zips the document.json file to form.zip
+ * @throws {Error} If the zipping process fails
  */
-async function zipAndRename() {
-    console.log('Zipping and renaming file...');
-    // TODO: Implement zip and rename logic
+async function zipDocumentJson() {
+    const zip = new AdmZip();
+    const documentPath = path.join(tempDirectory, 'document.json');
+    console.log("start of zipdocumentjson")
+    
+    if (!fs.existsSync(documentPath)) {
+        throw new Error("document.json not found in the temporary directory");
+    }
+
+    zip.addLocalFile(documentPath);
+
+    const zipPath = path.join(tempDirectory, 'form.zip');
+    zip.writeZip(zipPath);
+    console.log('form.zip created successfully in temporary directory');
+
+    return zipPath;
 }
 
 /**
- * Submits the chart file to Lucid API
- * @returns {Object} Response from Lucid API
+ * Renames form.zip to form.lucid and uploads it to Azure File Share
+ * @throws {Error} If the renaming or upload process fails
  */
-async function submitToLucidApi() {
-    console.log('Submitting to Lucid API...');
-    // TODO: Implement Lucid API submission logic
-    return {};
+async function renameAndUploadToAzure() {
+    const zipPath = path.join(tempDirectory, 'form.zip');
+    const lucidPath = path.join(tempDirectory, 'form.lucid');
+
+    fs.renameSync(zipPath, lucidPath);
+    console.log('form.zip renamed to form.lucid');
+
+    const lucidContent = fs.readFileSync(lucidPath);
+    await uploadFileToAzureFileShare('form.lucid', lucidContent, 'application/octet-stream');
+    console.log('form.lucid uploaded to Azure File Share');
+
+    // Clean up local files
+    fs.unlinkSync(lucidPath);
+    fs.unlinkSync(path.join(tempDirectory, 'document.json'));
 }
 
-module.exports = { uploadToAzureFileShare, zipAndRename, submitToLucidApi };
+/**
+ * Orchestrates the entire process of creating, zipping, renaming, and uploading the Lucid chart file
+ * @param {Object} chartData - The chart data to be processed
+ * @throws {Error} If any step in the process fails
+ */
+async function processLucidChartFile(chartData) {
+    try {
+        await createDocumentJson(chartData);
+        await zipDocumentJson();
+        await renameAndUploadToAzure();
+    } catch (error) {
+        console.error('Error in processLucidChartFile:', error);
+        throw error;
+    }
+}
+
+/**
+ * Downloads the form.lucid file from Azure File Share
+ * @returns {Promise<string>} The path to the downloaded file
+ * @throws {Error} If the download fails
+ */
+async function downloadLucidFile() {
+    const lucidContent = await downloadFileFromAzureFileShare('form.lucid');
+    const lucidPath = path.join(tempDirectory, 'form.lucid');
+    fs.writeFileSync(lucidPath, lucidContent);
+    console.log('form.lucid downloaded from Azure File Share to temporary file system');
+    return lucidPath;
+}
+
+module.exports = {
+    processLucidChartFile,
+    downloadLucidFile
+};

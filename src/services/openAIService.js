@@ -2,11 +2,8 @@
 // Copyright (c) 2024 ZyptAI, tim.barrow@zyptai.com
 // This software is proprietary to ZyptAI.
 
-// Azure OpenAI service for natural language processing in SAP implementation processes
-
 const { OpenAIClient, AzureKeyCredential } = require("@azure/openai");
 
-// Use environment variables directly
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 const AZURE_OPENAI_COMPLETIONS_DEPLOYMENT = process.env.AZURE_OPENAI_COMPLETIONS_DEPLOYMENT;
@@ -14,10 +11,6 @@ const AZURE_OPENAI_EMBEDDING_DEPLOYMENT = process.env.AZURE_OPENAI_EMBEDDING_DEP
 
 let openAIClient;
 
-/**
- * Initializes the Azure OpenAI client
- * @throws {Error} If the Azure OpenAI configuration is incomplete
- */
 function initializeOpenAIClient() {
     if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
         throw new Error("Azure OpenAI configuration is incomplete. Check your environment variables.");
@@ -25,15 +18,8 @@ function initializeOpenAIClient() {
     openAIClient = new OpenAIClient(AZURE_OPENAI_ENDPOINT, new AzureKeyCredential(AZURE_OPENAI_API_KEY));
 }
 
-/**
- * Generates embeddings for the given text
- * @param {string} text - The text to generate embeddings for
- * @returns {Promise<number[]>} The generated embedding vector
- * @throws {Error} If the embedding generation fails
- */
 async function generateEmbeddings(text) {
     if (!openAIClient) initializeOpenAIClient();
-
     try {
         const result = await openAIClient.getEmbeddings(AZURE_OPENAI_EMBEDDING_DEPLOYMENT, [text]);
         return result.data[0].embedding;
@@ -43,16 +29,8 @@ async function generateEmbeddings(text) {
     }
 }
 
-/**
- * Calls Azure OpenAI for chat completions
- * @param {Array} messages - The messages to send to OpenAI
- * @param {Object} [functionSchema] - Optional function schema for function calling
- * @returns {Promise<Object>} The response from Azure OpenAI
- * @throws {Error} If the OpenAI call fails
- */
-async function callAzureOpenAI(messages, functionSchema = null) {
+async function getOpenAIResponse(messages, functionSchema = null) {
     if (!openAIClient) initializeOpenAIClient();
-
     try {
         let options = {
             temperature: 0.7,
@@ -92,6 +70,6 @@ async function callAzureOpenAI(messages, functionSchema = null) {
 }
 
 module.exports = {
-    generateEmbeddings,
-    callAzureOpenAI
+    getOpenAIResponse,
+    generateEmbeddings
 };

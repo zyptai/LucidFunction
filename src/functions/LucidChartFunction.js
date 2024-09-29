@@ -5,20 +5,24 @@
 // Main Azure Function for generating Lucid charts for SAP implementation processes
 
 const { app } = require('@azure/functions');
-const { generateEmbeddings, callAzureOpenAI } = require('../services/openAIService');
+const openAIService = require('../services/openAIService');
 const { performHybridSearch } = require('../services/searchService');
 const { generateLucidChartData } = require('../services/lucidChartGenerator');
 const { uploadFileToAzureFileShare, downloadFileFromAzureFileShare } = require('../services/azureStorageService');
 const { submitToLucidApi } = require('../services/lucidApiService');
 const path = require('path');
 const fs = require('fs');
+const AdmZip = require('adm-zip');
+
+// Use Azure Function's temporary directory
+const tempDirectory = process.env.TEMP || '/tmp';
 
 /**
  * Azure Function to handle the Lucid chart generation process using RAG pipeline
  * @param {Object} req - The HTTP request object
  * @returns {Object} HTTP response object with status and body
  */
-async function lucidChartFunction(req) {
+const lucidChartFunction = async function(req) {
     console.log('LucidChartFunction triggered.');
 
     try {
@@ -27,7 +31,7 @@ async function lucidChartFunction(req) {
 
         // Generate embeddings for the user prompt
         console.log('Generating embeddings...');
-        const embedding = await generateEmbeddings(userPrompt);
+        const embedding = await openAIService.generateEmbeddings(userPrompt);
 
         // Perform hybrid search
         console.log('Performing hybrid search...');
@@ -68,27 +72,44 @@ async function lucidChartFunction(req) {
 
         // Call OpenAI with function calling
         console.log('Calling Azure OpenAI...');
-        const openAIResponse = await callAzureOpenAI(messages, lucidChartSchema);
+        const openAIResponse = await openAIService.getOpenAIResponse(messages, lucidChartSchema);
 
         // Generate Lucid chart data
         console.log('Generating Lucid chart data...');
-        const chartData = await generateLucidChartData(openAIResponse);
+        const chartData = await generateLucidChartData(userPrompt);
 
         // Perform file operations
         console.log('Performing file operations...');
-        await uploadFileToAzureFileShare('document.json', JSON.stringify(chartData));
         
-        // Download the file, assuming it's been processed to .lucid format
-        const lucidFileContent = await downloadFileFromAzureFileShare('document.lucid');
-        const tempFilePath = path.join(__dirname, 'temp_document.lucid');
-        fs.writeFileSync(tempFilePath, lucidFileContent);
+        // Step 1: Create document.json
+        const documentPath = path.join(tempDirectory, 'document.json');
+        fs.writeFileSync(documentPath, JSON.stringify(chartData, null, 2));
+        console.log('document.json created successfully');
+
+        // Step 2: Zip document.json to form.zip
+        const zip = new AdmZip();
+        zip.addLocalFile(documentPath);
+        const zipPath = path.join(tempDirectory, 'form.zip');
+        zip.writeZip(zipPath);
+        console.log('form.zip created successfully');
+
+        // Step 3: Rename form.zip to form.lucid
+        const lucidPath = path.join(tempDirectory, 'form.lucid');
+        fs.renameSync(zipPath, lucidPath);
+        console.log('form.zip renamed to form.lucid');
+
+        // Upload form.lucid to Azure File Share
+        const lucidContent = fs.readFileSync(lucidPath);
+        await uploadFileToAzureFileShare('form.lucid', lucidContent, 'application/octet-stream');
+        console.log('form.lucid uploaded to Azure File Share');
 
         // Submit to Lucid API
         console.log('Submitting to Lucid API...');
-        const lucidResponse = await submitToLucidApi(tempFilePath);
+        const lucidResponse = await submitToLucidApi(lucidPath);
 
-        // Clean up temporary file
-        fs.unlinkSync(tempFilePath);
+        // Clean up temporary files
+        fs.unlinkSync(documentPath);
+        fs.unlinkSync(lucidPath);
 
         // Prepare response
         const responseMessage = {
@@ -112,7 +133,7 @@ async function lucidChartFunction(req) {
             body: JSON.stringify({ error: `An error occurred: ${error.message}` })
         };
     }
-}
+};
 
 app.http('LucidChartFunction', {
     methods: ['POST'],
