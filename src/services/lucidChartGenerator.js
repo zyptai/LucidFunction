@@ -35,10 +35,10 @@ Guidelines for Generating Lucid API JSON Files:
      - titleBar: { height: 40, verticalText: false }
      - lanes: Array of lane objects (create one for each main phase or system in the process)
        - id: Unique identifier for each lane (e.g., "lane1", "lane2", etc.)
-       - title: HTML string for the lane title (e.g., "<span style='color: #FFFFFF; font-weight: bold;'>Phase Name</span>")
+       - title: HTML string for the lane title (e.g., "<span style='color: #000000; font-weight: bold;'>Phase Name</span>")
        - width: Width of the lane (ensure sum of all widths equals the total width of the swimlane)
-       - headerFill: Color for the lane header (use only colors from the valid color list below)
-       - laneFill: Color for the lane body (use only colors from the valid color list below)
+       - headerFill: Use alternating shades of grey (e.g., "#E0E0E0", "#C0C0C0")
+       - laneFill: "#FFFFFF" (white) for all lanes
 
 3. Adding Shapes to Swimlanes:
    - Create shape objects for each step in the process:
@@ -47,19 +47,19 @@ Guidelines for Generating Lucid API JSON Files:
      - boundingBox: { x: [position within lane], y: [vertical position], w: 160, h: 60 }
      - laneId: ID of the lane this shape belongs to
      - style: { 
-         stroke: { color: [use only colors from the valid color list], width: 2 },
+         stroke: { color: "#000000", width: 2 },
          fill: { 
            type: "solid",
-           color: [use only colors from the valid color list] 
+           color: "#FFFFFF" 
          }
        }
-     - text: Label or content within the shape
+     - text: Label or content within the shape (use black text color)
 
 4. Connecting Shapes with Lines:
    - Create line objects to connect the shapes:
      - id: Unique identifier for the connector (e.g., "connector1", "connector2", etc.)
      - lineType: "straight" or "curved" (prefer "straight" for simplicity)
-     - stroke: { color: [use only colors from the valid color list], width: 2 }
+     - stroke: { color: "#000000", width: 2 }
      - endpoint1: {
          type: "shapeEndpoint",
          style: "none",
@@ -78,10 +78,6 @@ Guidelines for Generating Lucid API JSON Files:
    - Position shapes within their respective lanes, maintaining clear flow.
    - Ensure that shapes do not overlap and are evenly spaced within lanes.
 
-Valid Color List:
-Use only these colors for all color properties in the chart:
-"#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF", "#FF00FF", "#C0C0C0", "#808080", "#800000", "#808000", "#008000", "#800080", "#008080", "#000080"
-
 IMPORTANT: 
 - All charts MUST include swimlanes, shapes, and connecting lines.
 - Ensure that the swimlane object contains the 'vertical' property set to false, and the 'lanes' property with an array of lane objects. 
@@ -91,6 +87,8 @@ IMPORTANT:
 - Generate at least one shape for each lane in the swimlane.
 - Ensure that each shape has a unique ID and is properly positioned within its lane.
 - Create connector lines between shapes to represent the process flow.
+- Use white (#FFFFFF) for lane backgrounds and alternating shades of grey for lane headers.
+- Use black (#000000) for all text and line colors.
 
 Generate a complete JSON structure that accurately represents the SAP implementation process described earlier, following these guidelines strictly. Ensure all IDs are unique and the structure is valid according to the Lucid API specifications.
 `;
