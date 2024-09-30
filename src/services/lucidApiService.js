@@ -24,6 +24,10 @@ async function submitToLucidApi(filePath) {
         throw new Error("Lucid API credentials are not set. Check your environment variables.");
     }
 
+    if (!filePath) {
+        throw new Error("File path is undefined. Please provide a valid file path.");
+    }
+
     try {
         const fileStream = fs.createReadStream(filePath);
         const form = new FormData();

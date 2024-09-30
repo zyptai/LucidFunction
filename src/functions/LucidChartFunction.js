@@ -51,17 +51,17 @@ const lucidChartFunction = async function(request, context) {
 
         // Step 4: Generate Lucid chart data
         context.log('Generating Lucid chart data...');
-        const chartData = await generateLucidChartData(chartStructureDescription);
+        const chartData = await generateLucidChartData(processDescription);
         context.log('Lucid chart data generated successfully.');
 
         // Step 5: Process and upload Lucid chart file
         context.log('Processing Lucid chart file...');
-        await processLucidChartFile(chartData);
+        const lucidFilePath = await processLucidChartFile(chartData);
         context.log('Lucid chart file processed and uploaded successfully.');
 
         // Step 6: Submit to Lucid API
         context.log('Submitting to Lucid API...');
-        const lucidResponse = await submitToLucidApi();
+        const lucidResponse = await submitToLucidApi(lucidFilePath);
         context.log('Submission to Lucid API successful.');
 
         // Prepare response
@@ -81,7 +81,10 @@ const lucidChartFunction = async function(request, context) {
         context.log('Error stack trace:', error.stack);
         return {
             status: 500,
-            body: JSON.stringify({ error: `An error occurred: ${error.message}` })
+            body: JSON.stringify({ 
+                error: `An error occurred: ${error.message}`,
+                stack: error.stack
+            })
         };
     }
 };

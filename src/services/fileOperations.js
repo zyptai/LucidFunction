@@ -30,7 +30,7 @@ async function createDocumentJson(content) {
 async function zipDocumentJson() {
     const zip = new AdmZip();
     const documentPath = path.join(tempDirectory, 'document.json');
-    console.log("start of zipdocumentjson")
+    console.log("start of zipdocumentjson");
     
     if (!fs.existsSync(documentPath)) {
         throw new Error("document.json not found in the temporary directory");
@@ -48,6 +48,7 @@ async function zipDocumentJson() {
 /**
  * Renames form.zip to form.lucid and uploads it to Azure File Share
  * @throws {Error} If the renaming or upload process fails
+ * @returns {string} The path to the form.lucid file
  */
 async function renameAndUploadToAzure() {
     const zipPath = path.join(tempDirectory, 'form.zip');
@@ -60,21 +61,23 @@ async function renameAndUploadToAzure() {
     await uploadFileToAzureFileShare('form.lucid', lucidContent, 'application/octet-stream');
     console.log('form.lucid uploaded to Azure File Share');
 
-    // Clean up local files
-    fs.unlinkSync(lucidPath);
-    fs.unlinkSync(path.join(tempDirectory, 'document.json'));
+    // Don't clean up local files yet, as we need the path for the Lucid API
+    return lucidPath;
 }
 
 /**
  * Orchestrates the entire process of creating, zipping, renaming, and uploading the Lucid chart file
  * @param {Object} chartData - The chart data to be processed
  * @throws {Error} If any step in the process fails
+ * @returns {string} The path to the form.lucid file
  */
 async function processLucidChartFile(chartData) {
     try {
         await createDocumentJson(chartData);
         await zipDocumentJson();
-        await renameAndUploadToAzure();
+        const lucidPath = await renameAndUploadToAzure();
+        console.log('Lucid chart file processed and uploaded successfully.');
+        return lucidPath;
     } catch (error) {
         console.error('Error in processLucidChartFile:', error);
         throw error;

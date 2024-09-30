@@ -37,18 +37,25 @@ async function generateEmbeddings(text) {
     }
 }
 
-async function getOpenAIResponse(messages) {
+async function getOpenAIResponse(messages, functionDefinition) {
     if (!openAIClient) initializeOpenAIClient();
     try {
         console.log("Sending request to OpenAI API...");
-        console.log("Messages:", JSON.stringify(messages).substring(0, 50));
+        console.log("Messages:", JSON.stringify(messages, null, 2));
+        console.log("Function Definition:", JSON.stringify(functionDefinition, null, 2));
+
+        const options = {
+            functions: functionDefinition ? [functionDefinition] : undefined,
+            function_call: functionDefinition ? { name: functionDefinition.name } : undefined,
+        };
 
         const result = await openAIClient.getChatCompletions(
             AZURE_OPENAI_COMPLETIONS_DEPLOYMENT,
-            messages
+            messages,
+            options
         );
 
-        console.log("Received response from OpenAI API...");
+        console.log("Received response from OpenAI API:", JSON.stringify(result, null, 2));
 
         if (result.choices && result.choices.length > 0) {
             return result.choices[0].message;
