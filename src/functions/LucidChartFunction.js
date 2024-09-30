@@ -33,21 +33,21 @@ const lucidChartFunction = async function(request, context) {
         const userPrompt = body.prompt;
         context.log(`Received prompt: ${userPrompt.substring(0, 50)}`);
 
-        // Step 1: Generate embeddings for the user prompt
+        // Step 1: Generate chart structure description and enhanced prompt
+        context.log('Generating chart structure description...');
+        const { enhancedPrompt, processDescription } = await generateChartStructureDescription(userPrompt);
+        context.log('Chart structure description generated.');
+        context.log('Process Description:', processDescription.substring(0, 100) + '...');
+
+        // Step 2: Generate embeddings for the enhanced prompt
         context.log('Generating embeddings...');
-        const embedding = await openAIService.generateEmbeddings(userPrompt);
+        const embedding = await openAIService.generateEmbeddings(enhancedPrompt);
         context.log('Embeddings generated successfully.');
 
-        // Step 2: Perform hybrid search
+        // Step 3: Perform hybrid search
         context.log('Performing hybrid search...');
-        const searchResults = await performHybridSearch(userPrompt, embedding);
+        const searchResults = await performHybridSearch(enhancedPrompt, embedding);
         context.log('Hybrid search completed.');
-
-        // Step 3: Generate chart structure description
-        context.log('Generating chart structure description...');
-        const processDescription = await generateChartStructureDescription(userPrompt, searchResults);
-        context.log('Chart structure description generated.');
-        context.log('Process Description:', processDescription);
 
         // Step 4: Generate Lucid chart data
         context.log('Generating Lucid chart data...');
@@ -88,6 +88,7 @@ const lucidChartFunction = async function(request, context) {
         };
     }
 };
+
 
 /**
  * Reads and parses the request body from a ReadableStream

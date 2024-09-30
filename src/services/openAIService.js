@@ -41,8 +41,9 @@ async function getOpenAIResponse(messages, functionDefinition) {
     if (!openAIClient) initializeOpenAIClient();
     try {
         console.log("Sending request to OpenAI API...");
-        console.log("Messages:", JSON.stringify(messages, null, 2));
-        console.log("Function Definition:", JSON.stringify(functionDefinition, null, 2));
+        console.log("Messages:", JSON.stringify(messages, null, 2)?.substring(0, 200) || "undefined");
+        console.log("Function Definition:", JSON.stringify(functionDefinition, null, 2)?.substring(0, 200) || "undefined");
+       
 
         const options = {
             functions: functionDefinition ? [functionDefinition] : undefined,

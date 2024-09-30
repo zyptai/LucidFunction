@@ -7,23 +7,24 @@
 const openAIService = require('./openAIService');
 
 /**
- * Generates a detailed chart structure description based on user prompt and search results
+ * Generates a detailed chart structure description based on user prompt
  * @param {string} userPrompt - The user's input prompt
- * @param {Object} searchResults - The results from the hybrid search
- * @returns {string} Detailed process description
+ * @returns {Object} Object containing enhancedPrompt and processDescription
  */
-async function generateChartStructureDescription(userPrompt, searchResults) {
+async function generateChartStructureDescription(userPrompt) {
     console.log('Generating chart structure description...');
 
-    const chartStructurePrompt = `Based on the following user request and relevant documentation, generate a detailed paragraph description of the SAP implementation process:
+    const chartStructurePrompt = `Based on the following user request, generate a detailed list of objects that would go into a swimlane process flow:
         User Request: ${userPrompt}
-        Relevant Documentation: ${searchResults.content.substring(0, 500)}...
         
-        Provide a comprehensive description of the process, including:
-        1. Each step in the process
-        2. Who or what system is executing each step
-        3. Inputs and outputs for each step
-        4. Any decision points or branching flows
+        Provide a comprehensive description of the process, must include the following in list form:
+        1. Swimlane for each of the actors in the process flow - whether it be a system or person/role.  Include a count of swimlanes.
+        2. Each step in the process would be represented with a shape.  Include a count of shapes.
+           - each shape would have a shape type with their standard meanings: rectangle, diamond, ellipse, triangle, hexagon. 
+            octagon, cloud, document, cylinder, parallelogram, roundedRectangle, cube, can, flowchartDocument, step, callout, star
+           - each shape would note which swimlane it would go in
+        3. Line connectors would be used to show how processes are connected to each other.  Include a count of lineconnectors.
+            - each line connector would state it's starting shape and ending shape
 
         The description should be detailed enough to be used as a basis for creating a swimlane diagram.`;
 
@@ -44,8 +45,12 @@ async function generateChartStructureDescription(userPrompt, searchResults) {
         throw new Error('Invalid process description received from OpenAI');
     }
 
-    console.log('Process description generated success...');
-    return processDescription;
+    console.log('Process description generated successfully.');
+
+    // Combine the original user prompt with the chart structure prompt for embedding
+    const enhancedPrompt = `${userPrompt}\n\n${chartStructurePrompt}`;
+
+    return { enhancedPrompt, processDescription };
 }
 
 module.exports = { generateChartStructureDescription };
