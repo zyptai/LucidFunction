@@ -20,8 +20,13 @@ async function generateChartStructureDescription(userPrompt) {
         Provide a comprehensive description of the process, must include the following in list form:
         1. Swimlane for each of the actors in the process flow - whether it be a system or person/role.  Include a count of swimlanes.
         2. Each step in the process would be represented with a shape.  Include a count of shapes.
-           - each shape would have a shape type with their standard meanings: rectangle, diamond, ellipse, triangle, hexagon. 
-            octagon, cloud, document, cylinder, parallelogram, roundedRectangle, cube, can, flowchartDocument, step, callout, star
+           - each shape would have a Text of what it represents
+           - each shape would have a shape type with their standard meanings: circle, cloud, cross, indent, diamond, doubleArrow, flexiblePolygon, hexagon,
+             isoscelesTriangle, octagon, pentagon, polyStar, polyStarShape, rectangle, rightTriangle, singleArrow, singleArrow
+             - the most popular shape types are rectangle(Often used for process steps or actions in workflows) and diamond(represents decision points where 
+                different branches in the process might occur)
+            - each shape would have it's relative process step to go inline with the process flow. Steps occuring at the same time could have an alphabetical 
+                denomination just to show it goes together "Process Step Number 1, Process Step Number 2a, Process Step Number 2b, etc)
            - each shape would note which swimlane it would go in
         3. Line connectors would be used to show how processes are connected to each other.  Include a count of lineconnectors.
             - each line connector would state it's starting shape and ending shape

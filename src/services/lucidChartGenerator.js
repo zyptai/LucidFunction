@@ -6,7 +6,8 @@ const openAIService = require('./openAIService');
 
 async function generateLucidChartData(processDescription) {
     console.log('Generating Lucid chart data...');
-    console.log('Process Description:', processDescription.substring(0, 200));
+    //console.log('Process Description:', processDescription.substring(0, 200));
+    console.log('Process Description:', processDescription);
     
     const lucidChartPrompt = `
 Create a JSON structure for a Lucid chart based on the following process description and guidelines:
@@ -28,14 +29,14 @@ Guidelines for Generating Lucid API JSON Files:
    - Create a single swimlane object with the following properties:
      - id: "mainSwimlane"
      - type: "swimLanes"
-     - boundingBox: { x: 0, y: 0, w: 800, h: 600 }
+     - boundingBox: { x: 100, y: 100, w: 800, h: 600 }
      - style: { stroke: { color: "#000000", width: 2 } }
      - magnetize: true
      - vertical: false (IMPORTANT: Include this property)
      - titleBar: { height: 40, verticalText: false }
      - lanes: Array of lane objects (create one for each main phase or system in the process)
        - id: Unique identifier for each lane (e.g., "lane1", "lane2", etc.)
-       - title: HTML string for the lane title (e.g., "<span style='color: #000000; font-weight: bold;'>Phase Name</span>")
+       - title: HTML string for the lane title (e.g., "<span style='color: #000000; font-weight: bold;'>Lane Title</span>")
        - width: Width of the lane (ensure sum of all widths equals the total width of the swimlane)
        - headerFill: Use alternating shades of grey (e.g., "#E0E0E0", "#C0C0C0")
        - laneFill: "#FFFFFF" (white) for all lanes
@@ -43,13 +44,19 @@ Guidelines for Generating Lucid API JSON Files:
 3. Adding Shapes to Swimlanes:
    - Create shape objects for each step in the process:
      - id: Unique identifier for the shape (e.g., "shape1", "shape2", etc.)
-     - type: Use only the following valid shape types: rectangle, diamond, ellipse, triangle, octagon, cloud, star
+     - type: Use only the following valid shape types: circle, cloud, cross, indent, diamond, doubleArrow, flexiblePolygon, hexagon,
+             isoscelesTriangle, octagon, pentagon, polyStar, polyStarShape, rectangle, rightTriangle, singleArrow, singleArrow
      - boundingBox: { x: [position within lane], y: [vertical position], w: 160, h: 60 }
+Ensure that the x and y positions for each shape in the swimlane are calculated to prevent overlapping:
+- Horizontally, space shapes evenly by using lane width divided by the total number of shapes. Center single shapes in their lane.
+- Vertically, start shapes at 0.1 (10%) of the lane height, with each subsequent shape placed at y = previousY + shapeHeight + padding.
+- Ensure that shapes in sparse lanes are centered vertically.
+
      - laneId: ID of the lane this shape belongs to
      - style: { 
          stroke: { color: "#000000", width: 2 },
          fill: { 
-           type: "solid",
+           type: "color",
            color: "#FFFFFF" 
          }
        }
@@ -57,8 +64,8 @@ Guidelines for Generating Lucid API JSON Files:
 
 4. Connecting Shapes with Lines:
    - Create line objects to connect the shapes:
-     - id: Unique identifier for the connector (e.g., "connector1", "connector2", etc.)
-     - lineType: "straight" or "curved" (prefer "straight" for simplicity)
+     - id: Unique identifier for the connector (e.g., "line1", "line2", etc.)
+     - lineType: Use ONLY "straight" for all lines
      - stroke: { color: "#000000", width: 2 }
      - endpoint1: {
          type: "shapeEndpoint",
@@ -73,16 +80,25 @@ Guidelines for Generating Lucid API JSON Files:
          position: { x: [0-1], y: [0-1] }
        }
 
+   IMPORTANT: Use ONLY the specified values for lineType, endpoint styles, and shape types.
+   
+   IMPORTANT: The 'position' property for both endpoints MUST use decimal values between 0 and 1 (inclusive) for both x and y coordinates.
+   These values represent relative positions on the shape:
+     - x: 0 (left edge), 0.5 (center), 1 (right edge)
+     - y: 0 (top edge), 0.5 (middle), 1 (bottom edge)
+
 5. Styling and Positioning:
    - Use consistent colors and stroke widths throughout the chart.
-   - Position shapes within their respective lanes, maintaining clear flow.
+   - Position shapes within their respective lanes, maintaining clear flow:
+     * Horizontally: If only one shape in a lane, center it (x: 0.5 - half of shape width). If multiple shapes, space them evenly.
+     * Vertically: Start first shape at y: 0.1 (10% from top) and space subsequent shapes evenly, ensuring they don't overlap.
    - Ensure that shapes do not overlap and are evenly spaced within lanes.
+   - If a lane has fewer shapes than others, distribute its shapes evenly across the lane height.
 
 IMPORTANT: 
-- All charts MUST include swimlanes, shapes, and connecting lines.
-- Ensure that the swimlane object contains the 'vertical' property set to false, and the 'lanes' property with an array of lane objects. 
-- The sum of all lane widths must exactly equal the total width of the swimlane (800 in this case).
-- Use only the specified valid shape types and colors.
+- All numeric values for positions and sizes should be expressed as decimals between 0 and 1, representing fractions of the total width or height.
+- The sum of all lane widths must equal exactly 1.0.
+- Use only the specified valid shape types and line types.
 - Always use "color" as the fill type for shapes.
 - Generate at least one shape for each lane in the swimlane.
 - Ensure that each shape has a unique ID and is properly positioned within its lane.
@@ -267,7 +283,8 @@ console.log('Lucid Chart Prompt:', lucidChartPrompt.substring(0, 200));
 
 
 function fixLucidChartData(chartData) {
-    const validShapeTypes = ['swimLanes', 'rectangle'];
+    const validShapeTypes = ['swimLanes', 'rectangle', 'circle', 'cloud', 'cross', 'indent', 'diamond', 'doubleArrow', 'flexiblePolygon', 'hexagon',
+        'isoscelesTriangle', 'octagon', 'pentagon', 'polyStar', 'polyStarShape', 'rectangle', 'rightTriangle', 'singleArrow', 'singleArrow'];
     const validFillTypes = ['solid'];
   
     function traverseAndFix(obj, parent = null) {
@@ -285,8 +302,8 @@ function fixLucidChartData(chartData) {
           newObj[key] = value.map(shape => traverseAndFix(shape, 'shapes'));
         } else if (parent === 'shapes' && key === 'type') {
           // This is a shape type
-          newObj[key] = value.toLowerCase() === 'swimlanes' ? 'swimLanes' : 'rectangle';
-        } else if (key === 'fill' && typeof value === 'object') {
+          newObj[key] = value === 'swimLanes' ? 'swimLanes' : 
+            validShapeTypes.includes(value) ? value : 'rectangle';
           // This is a fill object
           newObj[key] = traverseAndFix(value, 'fill');
         } else if (parent === 'fill' && key === 'type') {

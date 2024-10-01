@@ -37,7 +37,7 @@ const lucidChartFunction = async function(request, context) {
         context.log('Generating chart structure description...');
         const { enhancedPrompt, processDescription } = await generateChartStructureDescription(userPrompt);
         context.log('Chart structure description generated.');
-        context.log('Process Description:', processDescription.substring(0, 100) + '...');
+        context.log('Process Description:', processDescription.substring(0, 5000) + '...');
 
         // Step 2: Generate embeddings for the enhanced prompt
         context.log('Generating embeddings...');
