@@ -15,23 +15,39 @@ async function generateChartStructureDescription(userPrompt) {
     console.log('Generating chart structure description...');
 
     const chartStructurePrompt = `Based on the following user request, generate a detailed list of objects that would go into a swimlane process flow:
-        User Request: ${userPrompt}
-        
-        Provide a comprehensive description of the process, must include the following in list form:
-        1. Swimlane for each of the actors in the process flow - whether it be a system or person/role.  Include a count of swimlanes.
-        2. Each step in the process would be represented with a shape.  Include a count of shapes.
-           - each shape would have a Text of what it represents
-           - each shape would have a shape type with their standard meanings: circle, cloud, cross, indent, diamond, doubleArrow, flexiblePolygon, hexagon,
-             isoscelesTriangle, octagon, pentagon, polyStar, polyStarShape, rectangle, rightTriangle, singleArrow, singleArrow
-             - the most popular shape types are rectangle(Often used for process steps or actions in workflows) and diamond(represents decision points where 
-                different branches in the process might occur)
-            - each shape would have it's relative process step to go inline with the process flow. Steps occuring at the same time could have an alphabetical 
-                denomination just to show it goes together "Process Step Number 1, Process Step Number 2a, Process Step Number 2b, etc)
-           - each shape would note which swimlane it would go in
-        3. Line connectors would be used to show how processes are connected to each other.  Include a count of lineconnectors.
-            - each line connector would state it's starting shape and ending shape
+    User Request: ${userPrompt}
+    
+    Step 1: Detailed Process Summary
+    Provide a detailed summary of the business process that the chart is intended to represent. The summary should include all major actions, decision points, and escalations that need to be shown in the diagram. 
+    Focus on the following elements to ensure the summary is specific enough to inform the diagram creation:
+        - The flow of actions and interactions between different roles, systems, or departments.
+        - Key decision points, especially where processes might branch or require additional handling (e.g., errors, stock issues, payment failures).
+        - Escalation points where issues may require involvement from other departments or roles.
+        - Feedback loops where customer feedback or process improvements are involved.
 
-        The description should be detailed enough to be used as a basis for creating a swimlane diagram.`;
+    Step 2: Swimlane Description
+    Create a comprehensive list to represent the process in a swimlane diagram, ensuring that:
+        Swimlanes:
+            - All actors (e.g., systems, departments, roles, customers) involved in the process are listed.
+            - Each swimlane is named specifically based on its function in the process.
+            - Provide a total count of swimlanes.
+        Process Steps and Shapes:
+            - For each step in the process, define the shape using standard flowchart notation (e.g., rectangles for actions, diamonds for decision points).
+            - Include text for each shape describing the action or decision it represents.
+            - Number the process steps sequentially and use letters for concurrent steps (e.g., "Process Step 1", "Process Step 2a", "Process Step 2b").
+            - Indicate the swimlane for each step to show which role or system is responsible.
+        Line Connectors:
+            - Describe how each step connects to the next using line connectors.
+            - For each connector, specify:
+                - The starting and ending shapes.
+                - The total number of line connectors used.
+
+    Step 3: Process Flow Clarifications
+    Additionally, make sure to:
+        - Include error handling and escalation steps where applicable (e.g., handling process failures, exceptions, or delays).
+        - Account for feedback loops or any customer communication.
+        - Capture points where system updates or logs occur (e.g., order management system logs, CRM updates).
+        - The description should be specific enough to create a swimlane diagram in any flowchart tool like Lucidchart, Visio, or similar tools.`;
 
     const response = await openAIService.getOpenAIResponse(
         [{ role: "user", content: chartStructurePrompt }]

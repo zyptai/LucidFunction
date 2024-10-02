@@ -47,10 +47,10 @@ Guidelines for Generating Lucid API JSON Files:
      - type: Use only the following valid shape types: circle, cloud, cross, indent, diamond, doubleArrow, flexiblePolygon, hexagon,
              isoscelesTriangle, octagon, pentagon, polyStar, polyStarShape, rectangle, rightTriangle, singleArrow, singleArrow
      - boundingBox: { x: [position within lane], y: [vertical position], w: 160, h: 60 }
-Ensure that the x and y positions for each shape in the swimlane are calculated to prevent overlapping:
-- Horizontally, space shapes evenly by using lane width divided by the total number of shapes. Center single shapes in their lane.
-- Vertically, start shapes at 0.1 (10%) of the lane height, with each subsequent shape placed at y = previousY + shapeHeight + padding.
-- Ensure that shapes in sparse lanes are centered vertically.
+    - Ensure that the x and y positions for each shape in the swimlane are calculated to prevent overlapping:
+    - Horizontally, space shapes evenly by using lane width divided by the total number of shapes. Center single shapes in their lane.
+    - Vertically, start shapes at 0.1 (10%) of the lane height, with each subsequent shape placed at y = previousY + shapeHeight + padding.
+    - Ensure that shapes in sparse lanes are centered vertically.
 
      - laneId: ID of the lane this shape belongs to
      - style: { 
@@ -79,8 +79,11 @@ Ensure that the x and y positions for each shape in the swimlane are calculated 
          shapeId: [ID of the target shape],
          position: { x: [0-1], y: [0-1] }
        }
-
-   IMPORTANT: Use ONLY the specified values for lineType, endpoint styles, and shape types.
+    The valid endpoint types for Lucidchart are: 
+        "shapeEndpoint" - This is the most common type, used to connect lines to shapes.
+        "connectionPoint" - Used for specific connection points on shapes.
+        "floatingEndpoint" - Used for endpoints that are not connected to any shape.
+   IMPORTANT: Use ONLY the specified values for lineType, endpoint styles, endpoint types, shape types.
    
    IMPORTANT: The 'position' property for both endpoints MUST use decimal values between 0 and 1 (inclusive) for both x and y coordinates.
    These values represent relative positions on the shape:
