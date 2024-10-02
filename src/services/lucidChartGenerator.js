@@ -47,11 +47,6 @@ Guidelines for Generating Lucid API JSON Files:
      - type: Use only the following valid shape types: circle, cloud, cross, indent, diamond, doubleArrow, flexiblePolygon, hexagon,
              isoscelesTriangle, octagon, pentagon, polyStar, polyStarShape, rectangle, rightTriangle, singleArrow, singleArrow
      - boundingBox: { x: [position within lane], y: [vertical position], w: 160, h: 60 }
-    - Ensure that the x and y positions for each shape in the swimlane are calculated to prevent overlapping:
-    - Horizontally, space shapes evenly by using lane width divided by the total number of shapes. Center single shapes in their lane.
-    - Vertically, start shapes at 10%  of the lane height (stated in pixels), with each subsequent shape placed at y = previousY + shapeHeight + padding.
-    - Ensure that shapes in sparse lanes are centered vertically.
-
      - laneId: ID of the lane this shape belongs to
      - style: { 
          stroke: { color: "#000000", width: 2 },
@@ -61,6 +56,10 @@ Guidelines for Generating Lucid API JSON Files:
          }
        }
      - text: Label or content within the shape (use black text color)
+       IMPORTANT: Include the position information in the text using the following format:
+       "[Position:X] Original Text"
+       Where X is the position number of the shape within its lane.
+       Example: "[Position:2] Verify Order"
 
 4. Connecting Shapes with Lines:
    - Create line objects to connect the shapes:
@@ -178,7 +177,8 @@ console.log('Lucid Chart Prompt:', lucidChartPrompt.substring(0, 200));
                                         },
                                         required: ["stroke", "fill"]
                                     },
-                                    text: { type: "string" },
+                                    text: { type: "string", 
+                                    pattern: "^\\[Position:\\d+\\]\\s.*$" },
                                     laneId: { type: "string" },
                                     vertical: { type: "boolean" },
                                     magnetize: { type: "boolean" },
@@ -395,159 +395,44 @@ function adjustShapePositions(chartData) {
     }
 
     const swimlaneX = swimlane.boundingBox.x;
-    const swimlaneY = swimlane.boundingBox.y;
     const swimlaneWidth = swimlane.boundingBox.w;
-    const swimlaneHeight = swimlane.boundingBox.h;
-
-    // When vertical: false, titleBar.height represents width
     const titleBarWidth = swimlane.titleBar && swimlane.titleBar.height ? swimlane.titleBar.height : 0;
 
     const padding = 10; // Adjust as needed
-    const MIN_WIDTH = 50; // Minimum width in pixels
-    const MIN_HEIGHT = 30; // Minimum height in pixels
+    const availableWidth = swimlaneWidth - titleBarWidth - 2 * padding;
 
-    console.log(`Swimlane X: ${swimlaneX}, Y: ${swimlaneY}, Width: ${swimlaneWidth}, Height: ${swimlaneHeight}`);
-    console.log(`Title Bar Width: ${titleBarWidth}`);
-    console.log(`Padding: ${padding}`);
-
-    // Calculate the cumulative Y positions for each lane
-    let laneStartYPositions = [];
-    let cumulativeY = swimlaneY;
-    swimlane.lanes.forEach((lane, index) => {
-        laneStartYPositions.push(cumulativeY);
-        console.log(`Lane ${index + 1} (${lane.id}) starts at Y: ${cumulativeY}, Height: ${lane.width}`);
-        cumulativeY += lane.width; // Since vertical: false, lane.width represents height
-    });
-
-    // Group shapes by lane
-    const lanesWithShapes = swimlane.lanes.map(lane => {
-        const shapesInLane = chartData.pages[0].shapes.filter(shape => shape.laneId === lane.id && shape.type !== "swimLanes");
-        return { lane, shapes: shapesInLane };
-    });
-
-    // Adjust shapes within each lane
-    lanesWithShapes.forEach(({ lane, shapes }) => {
-        const laneStartY = laneStartYPositions[swimlane.lanes.findIndex(l => l.id === lane.id)];
-        const laneHeight = lane.width; // Height of the lane
-
-        const availableWidth = swimlaneWidth - titleBarWidth - 2 * padding;
-        const availableXStart = swimlaneX + titleBarWidth + padding;
-
-        const numberOfShapes = shapes.length;
-        if (numberOfShapes === 0) return; // No shapes to adjust
-
-        // Calculate total shapes width
-        const totalShapesWidth = shapes.reduce((sum, shape) => {
-            if (shape.boundingBox.w <= 1 && shape.boundingBox.h <= 1) {
-                // If width is fractional, convert to absolute
-                return sum + (shape.boundingBox.w * availableWidth);
-            } else {
-                return sum + shape.boundingBox.w;
-            }
-        }, 0);
-
-        // Calculate total spacing
-        let spacing = (availableWidth - totalShapesWidth) / (numberOfShapes + 1);
-
-        // If spacing is negative, set to zero and warn
-        if (spacing < 0) {
-            console.warn(`Lane ${lane.id} has more shapes or larger shapes than available width. Setting spacing to 0.`);
-            spacing = 0;
-        }
-
-        console.log(`\nProcessing Lane (${lane.id}):`);
-        console.log(`Total Shapes Width: ${totalShapesWidth.toFixed(2)} pixels`);
-        console.log(`Calculated Spacing: ${spacing.toFixed(2)} pixels`);
-
-        // Initialize currentX
-        let currentX = availableXStart + spacing;
-
-        shapes.forEach(shape => {
-            console.log(`\nAdjusting shape ${shape.id} in lane ${lane.id}`);
-            console.log(`Original Bounding Box:`, shape.boundingBox);
-
-            // Extract bounding box properties
-            let { x: fractionalX, y: originalY, w: shapeWidth, h: shapeHeight } = shape.boundingBox;
-
-            // Convert fractional w and h to absolute sizes if necessary
-            if (shapeWidth <= 1 && shapeHeight <= 1) {
-                // Assuming w and h are fractions, convert to absolute units
-                shapeWidth = shapeWidth * availableWidth;
-                shapeHeight = shapeHeight * (laneHeight - 2 * padding);
-                console.log(`Converted shape dimensions to absolute units: Width=${shapeWidth.toFixed(2)}, Height=${shapeHeight.toFixed(2)}`);
-            } else {
-                console.log(`Shape dimensions are already absolute: Width=${shapeWidth}, Height=${shapeHeight}`);
-            }
-
-            // Enforce minimum shape sizes
-            if (shapeWidth < MIN_WIDTH) {
-                console.warn(`Shape ${shape.id} width (${shapeWidth}) is below minimum. Adjusting to ${MIN_WIDTH}`);
-                shapeWidth = MIN_WIDTH;
-            }
-
-            if (shapeHeight < MIN_HEIGHT) {
-                console.warn(`Shape ${shape.id} height (${shapeHeight}) is below minimum. Adjusting to ${MIN_HEIGHT}`);
-                shapeHeight = MIN_HEIGHT;
-            }
-
-            // Determine if y is fractional or absolute
-            let absoluteY;
-            if (originalY <= 1) {
-                // y is fractional, convert to absolute position within the lane
-                const availableHeight = laneHeight - 2 * padding - shapeHeight;
-                absoluteY = laneStartY + padding + (originalY * availableHeight);
-                console.log(`y is fractional (${originalY}). Converted to absolute Y: ${absoluteY.toFixed(2)}`);
-            } else {
-                // y is absolute, ensure it falls within lane boundaries
-                absoluteY = originalY;
-
-                // Calculate lane boundaries
-                const laneEndY = laneStartY + laneHeight;
-                const minY = laneStartY + padding;
-                const maxY = laneEndY - padding - shapeHeight;
-
-                // Adjust y if out of bounds
-                if (absoluteY < minY) {
-                    console.warn(`Shape ${shape.id} Y (${absoluteY}) is below minimum Y (${minY}). Adjusting to ${minY}`);
-                    absoluteY = minY;
-                } else if (absoluteY > maxY) {
-                    console.warn(`Shape ${shape.id} Y (${absoluteY}) is above maximum Y (${maxY}). Adjusting to ${maxY}`);
-                    absoluteY = maxY;
-                } else {
-                    console.log(`y is absolute and within lane boundaries: ${absoluteY}`);
-                }
-            }
-
-            // Assign x position based on spacing
-            const absoluteX = Math.round(currentX);
-            const roundedY = Math.round(absoluteY);
-            const roundedWidth = Math.round(shapeWidth);
-            const roundedHeight = Math.round(shapeHeight);
-
-            // Ensure that x + w does not exceed availableWidth
-            if ((absoluteX + roundedWidth) > (availableXStart + availableWidth)) {
-                console.warn(`Shape ${shape.id} x (${absoluteX}) + w (${roundedWidth}) exceeds available width (${availableXStart + availableWidth}). Adjusting x to fit.`);
-                const maxX = availableXStart + availableWidth - roundedWidth;
-                shape.boundingBox.x = Math.round(maxX);
-                shape.boundingBox.y = roundedY;
-                shape.boundingBox.w = roundedWidth;
-                shape.boundingBox.h = roundedHeight;
-                console.log(`Adjusted Bounding Box:`, shape.boundingBox);
-            } else {
-                console.log(`Assigned absolute X: ${absoluteX}, absolute Y: ${roundedY}`);
-                // Update the bounding box
-                shape.boundingBox.x = absoluteX;
-                shape.boundingBox.y = roundedY;
-                shape.boundingBox.w = roundedWidth;
-                shape.boundingBox.h = roundedHeight;
-                console.log(`Adjusted Bounding Box:`, shape.boundingBox);
-            }
-
-            // Update currentX for the next shape
-            currentX += shapeWidth + spacing;
+    // Extract positions and find the maximum
+    const positions = chartData.pages[0].shapes
+        .filter(shape => shape.type !== "swimLanes")
+        .map(shape => {
+            const match = shape.text.match(/\[Position:(\d+)\]/);
+            return match ? parseInt(match[1]) : 0;
         });
+    const maxPosition = Math.max(...positions);
+
+    // Calculate width for each position
+    const positionWidth = availableWidth / maxPosition;
+
+    // Adjust shapes
+    chartData.pages[0].shapes.forEach(shape => {
+        if (shape.type === "swimLanes") return;
+
+        // Extract position from text
+        const match = shape.text.match(/\[Position:(\d+)\]\s*(.*)/);
+        if (match) {
+            const position = parseInt(match[1]);
+            const cleanText = match[2];
+
+            // Calculate new x position
+            const newX = swimlaneX + titleBarWidth + padding + (position - 1) * positionWidth + positionWidth / 2 - shape.boundingBox.w / 2;
+
+            // Update shape
+            shape.boundingBox.x = Math.round(newX);
+            //shape.text = cleanText; // Remove position info from text
+        }
     });
 
+    console.log('Shapes repositioned based on their positions');
     return chartData;
 }
 
