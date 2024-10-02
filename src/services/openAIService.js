@@ -48,6 +48,7 @@ async function getOpenAIResponse(messages, functionDefinition) {
         const options = {
             functions: functionDefinition ? [functionDefinition] : undefined,
             function_call: functionDefinition ? { name: functionDefinition.name } : undefined,
+            temperature: 0.1, // Set a low temperature to reduce creativity
         };
 
         const result = await openAIClient.getChatCompletions(
