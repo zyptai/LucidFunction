@@ -21,6 +21,11 @@ async function createDocumentJson(content) {
     const documentPath = path.join(tempDirectory, 'document.json');
     fs.writeFileSync(documentPath, JSON.stringify(content, null, 2));
     console.log('document.json created successfully in temporary directory');
+
+    // Read the file content and upload it to Azure File Share
+    const documentContent = fs.readFileSync(documentPath);
+    await uploadFileToAzureFileShare('document.json', documentContent, 'application/json');
+    console.log('document.json uploaded to Azure File Share');
 }
 
 /**
