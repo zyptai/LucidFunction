@@ -412,12 +412,11 @@ function adjustShapePositions(chartData) {
     const SHAPE_WIDTH = 160;
     const SHAPE_HEIGHT = 60;
     const SHAPE_BUFFER = 40;
-    const LANE_PADDING = 20;
 
     // Calculate new swimlane width
     let swimlaneWidth = DEFAULT_WIDTH;
     if (numPositions > MIN_POSITIONS) {
-        swimlaneWidth = (SHAPE_WIDTH + SHAPE_BUFFER) * numPositions + LANE_PADDING * 2;
+        swimlaneWidth = (SHAPE_WIDTH + SHAPE_BUFFER) * numPositions;
     }
 
     // Update swimlane bounding box width
@@ -433,11 +432,6 @@ function adjustShapePositions(chartData) {
         return titleText.length * 8; // Assuming 8 pixels per character on average
     }));
 
-    const titleBarWidth = Math.max(
-        swimlane.titleBar && swimlane.titleBar.height ? swimlane.titleBar.height : 0,
-        maxTitleWidth
-    );
-
     // Adjust shapes
     let currentY = swimlane.boundingBox.y;
     swimlane.lanes.forEach((lane) => {
@@ -448,9 +442,8 @@ function adjustShapePositions(chartData) {
                 const position = parseInt(match[1]);
 
                 // Calculate new x position
-                const newX = swimlane.boundingBox.x + titleBarWidth + LANE_PADDING + 
-                             (position - 1) * (SHAPE_WIDTH + SHAPE_BUFFER) + 
-                             (SHAPE_WIDTH + SHAPE_BUFFER) / 2 - SHAPE_WIDTH / 2;
+                const newX = swimlane.boundingBox.x + maxTitleWidth + 
+                             (position - 1) * (SHAPE_WIDTH + SHAPE_BUFFER);
 
                 // Calculate new y position
                 const newY = currentY + (lane.width - SHAPE_HEIGHT) / 2;
