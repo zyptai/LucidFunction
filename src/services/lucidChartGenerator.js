@@ -63,7 +63,7 @@ Guidelines for Generating Lucid API JSON Files:
 4. Connecting Shapes with Lines:
    - Create line objects to connect the shapes:
      - id: Unique identifier for the connector (e.g., "line1", "line2", etc.)
-     - lineType: Use ONLY "straight" for all lines
+     - lineType: Use ONLY "elbow" for all lines
      - stroke: { color: "#000000", width: 2 }
      - endpoint1: {
          type: "shapeEndpoint",
