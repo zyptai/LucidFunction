@@ -401,23 +401,35 @@ function adjustShapePositions(chartData) {
     
     // Calculate the number of unique positions
     const positions = new Set(shapes.map(shape => {
-        const match = shape.text.match(/\[Position:(\d+)\]/);
-        return match ? parseInt(match[1]) : 0;
+        const match = shape.text.match(/\[Position:(\d+[a-z]?)\]/i);
+        return match ? match[1] : '0';
     }));
-    const numPositions = Math.max(...positions);
+    const numPositions = positions.size;
 
     // Define constants
-    const DEFAULT_WIDTH = 800;
-    const MIN_POSITIONS = 4;
+    const MIN_WIDTH = 1600;
     const SHAPE_WIDTH = 160;
     const SHAPE_HEIGHT = 60;
-    const SHAPE_BUFFER = 40;
+    const MIN_BUFFER = 20;
+    const MAX_BUFFER = 40;
+    const TITLE_WIDTH = 125; // Fixed width for swimlane title
+
+    // Get the actual title bar width from the swimlane object
+    const titleBarWidth = swimlane.titleBar.height; // In horizontal orientation, height is actually width
+    console.log('TitleBar width:', titleBarWidth);
 
     // Calculate new swimlane width
-    let swimlaneWidth = DEFAULT_WIDTH;
-    if (numPositions > MIN_POSITIONS) {
-        swimlaneWidth = (SHAPE_WIDTH + SHAPE_BUFFER) * numPositions;
-    }
+    const totalShapeWidth = SHAPE_WIDTH * numPositions;
+    const availableBufferSpace = Math.max(MIN_WIDTH - totalShapeWidth - TITLE_WIDTH, 0);
+    const bufferPerShape = Math.min(Math.max(availableBufferSpace / (numPositions + 1), MIN_BUFFER), MAX_BUFFER);
+    let swimlaneWidth = TITLE_WIDTH + totalShapeWidth + bufferPerShape * (numPositions + 1);
+    swimlaneWidth = Math.max(swimlaneWidth, MIN_WIDTH);
+    console.log('Total Shape Width:', totalShapeWidth);
+    console.log('Available Buffer Space:', availableBufferSpace);
+    console.log('buffer per Shape:', bufferPerShape);
+    console.log('swimlane width:', swimlaneWidth);
+    console.log('Number of Positions:', numPositions);
+
 
     // Update swimlane bounding box width
     swimlane.boundingBox.w = swimlaneWidth;
@@ -426,27 +438,34 @@ function adjustShapePositions(chartData) {
     const swimlaneHeight = swimlane.lanes.reduce((sum, lane) => sum + lane.width, 0);
     swimlane.boundingBox.h = swimlaneHeight;
 
-    // Calculate the maximum width of swimlane titles
-    const maxTitleWidth = Math.max(...swimlane.lanes.map(lane => {
-        const titleText = lane.title.match(/>([^<]+)</)[1];
-        return titleText.length * 8; // Assuming 8 pixels per character on average
-    }));
+    // Create a position map
+    const positionMap = new Map([...positions].sort().map((pos, index) => [pos, index + 1]));
+    // Log all entries of the map
+    positionMap.forEach((value, key) => {
+        console.log(`Position: ${key}, Index: ${value}`);
+});
 
     // Adjust shapes
-    let currentY = swimlane.boundingBox.y;
-    swimlane.lanes.forEach((lane) => {
-        const shapesInLane = shapes.filter(shape => shape.laneId === lane.id);
-        shapesInLane.forEach((shape) => {
-            const match = shape.text.match(/\[Position:(\d+)\]/);
-            if (match) {
-                const position = parseInt(match[1]);
+    shapes.forEach((shape) => {
+        const match = shape.text.match(/\[Position:(\d+[a-z]?)\]/i);
+        if (match) {
+            const positionKey = match[1];
+            const position = positionMap.get(positionKey) || 1;
 
-                // Calculate new x position
-                const newX = swimlane.boundingBox.x + maxTitleWidth + 
-                             (position - 1) * (SHAPE_WIDTH + SHAPE_BUFFER);
+            console.log("position:", position);
 
-                // Calculate new y position
-                const newY = currentY + (lane.width - SHAPE_HEIGHT) / 2;
+            // Calculate new x position
+            const newX = swimlane.boundingBox.x + TITLE_WIDTH + bufferPerShape +
+                         (position - 1) * (SHAPE_WIDTH + bufferPerShape);
+
+            console.log('NewX:', newX); 
+            
+
+            // Find the corresponding lane
+            const lane = swimlane.lanes.find(l => l.id === shape.laneId);
+            if (lane) {
+                const laneStartY = swimlane.boundingBox.y + swimlane.lanes.slice(0, swimlane.lanes.indexOf(lane)).reduce((sum, l) => sum + l.width, 0);
+                const newY = laneStartY + (lane.width - SHAPE_HEIGHT) / 2;
 
                 // Update shape
                 shape.boundingBox.x = Math.round(newX);
@@ -455,15 +474,20 @@ function adjustShapePositions(chartData) {
                 shape.boundingBox.h = SHAPE_HEIGHT;
 
                 // Remove position indicator from shape text
-                shape.text = shape.text.replace(/\[Position:\d+\]\s*/, "");
+                shape.text = shape.text.replace(/\[Position:\d+[a-z]?\]\s*/i, "");
+            } else {
+                console.warn(`Lane not found for shape: ${shape.id}`);
             }
-        });
-        currentY += lane.width;
+        }
     });
 
     console.log(`Swimlane dimensions adjusted to ${swimlaneWidth}x${swimlaneHeight}. Shapes repositioned accordingly.`);
     return chartData;
 }
+
+// File: src/services/lucidChartGenerator.js
+// Copyright (c) 2024 ZyptAI, tim.barrow@zyptai.com
+// This software is proprietary to ZyptAI.
 
 function adjustConnections(chartData) {
     const swimlane = chartData.pages[0].shapes.find(shape => shape.type === "swimLanes");
@@ -477,25 +501,55 @@ function adjustConnections(chartData) {
             const sourceLane = swimlane.lanes.findIndex(lane => lane.id === sourceShape.laneId);
             const targetLane = swimlane.lanes.findIndex(lane => lane.id === targetShape.laneId);
             
+            // Determine if shapes are in the same position horizontally
+            const samePosition = Math.abs(sourceShape.boundingBox.x - targetShape.boundingBox.x) < 10;
+
+            // Set line type based on shape positions
+            if (sourceLane === targetLane && !samePosition) {
+                line.lineType = "straight";
+            } else {
+                line.lineType = "elbow";
+            }
+
+            // Adjust endpoints
             if (sourceLane < targetLane) {
                 // Different lanes, source in higher lane
                 line.endpoint1.position = { x: 0.5, y: 1 };  // bottom center
                 line.endpoint2.position = { x: 0.5, y: 0 };  // top center
-            } else if (sourceLane === targetLane) {
-                // Same lane
-                line.endpoint1.position = { x: 1, y: 0.5 };  // right center
-                line.endpoint2.position = { x: 0, y: 0.5 };  // left center
-            } else {
-                console.warn(`Unexpected lane order: ${sourceLane} to ${targetLane}`);
+            } else if (sourceLane > targetLane) {
+                // Different lanes, source in lower lane
                 line.endpoint1.position = { x: 0.5, y: 0 };  // top center
                 line.endpoint2.position = { x: 0.5, y: 1 };  // bottom center
+            } else {
+                // Same lane
+                if (sourceShape.boundingBox.x < targetShape.boundingBox.x) {
+                    line.endpoint1.position = { x: 1, y: 0.5 };  // right center
+                    line.endpoint2.position = { x: 0, y: 0.5 };  // left center
+                } else {
+                    line.endpoint1.position = { x: 0, y: 0.5 };  // left center
+                    line.endpoint2.position = { x: 1, y: 0.5 };  // right center
+                }
             }
+
+            // Handle same position (vertical connection)
+            if (samePosition) {
+                if (sourceShape.boundingBox.y < targetShape.boundingBox.y) {
+                    line.endpoint1.position = { x: 0.5, y: 1 };  // bottom center
+                    line.endpoint2.position = { x: 0.5, y: 0 };  // top center
+                } else {
+                    line.endpoint1.position = { x: 0.5, y: 0 };  // top center
+                    line.endpoint2.position = { x: 0.5, y: 1 };  // bottom center
+                }
+            }
+
+            console.log(`Adjusted connection ${line.id}: ${sourceShape.id} to ${targetShape.id}, Type: ${line.lineType}`);
         } else {
             console.warn(`Could not find shapes for connection: ${line.id}`);
             // Remove the invalid connection
             const index = chartData.pages[0].lines.indexOf(line);
             if (index > -1) {
                 chartData.pages[0].lines.splice(index, 1);
+                console.log(`Removed invalid connection: ${line.id}`);
             }
         }
     });
