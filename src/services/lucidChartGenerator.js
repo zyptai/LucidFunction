@@ -6,7 +6,6 @@ const openAIService = require('./openAIService');
 
 async function generateLucidChartData(processDescription) {
     console.log('Generating Lucid chart data...');
-    //console.log('Process Description:', processDescription.substring(0, 200));
     console.log('Process Description:', processDescription);
     
     const lucidChartPrompt = `
@@ -90,9 +89,9 @@ Guidelines for Generating Lucid API JSON Files:
             - "position": "{ "x": 0, "y": 0.5 }"
   
         2. **Same Lane (Source Shape is Earlier in Process than Target):**
-            - **Source Shape ("endpoint1")**: Connect from the **right center**.
+            - **Source Shape ("endpoint1")**: Connect from the **left center**.
             - "position": "{ "x": 0.5, "y": 1 }"
-            - **Target Shape ("endpoint2")**: Connect to the **left center**.
+            - **Target Shape ("endpoint2")**: Connect to the **right center**.
             - "position": "{ "x": 0.5, "y": 0 }"
         
    IMPORTANT: Use ONLY the specified values for lineType, endpoint styles, endpoint types, shape types.
@@ -282,12 +281,13 @@ console.log('Lucid Chart Prompt:', lucidChartPrompt.substring(0, 200));
 
       if (lucidChartResponse.functionCall && lucidChartResponse.functionCall.arguments) {
         try {
-            const parsedResponse = JSON.parse(lucidChartResponse.functionCall.arguments);
-            const adjustedResponse = adjustSwimlaneDimensions(parsedResponse);
-            const fixedResponse = fixLucidChartData(adjustedResponse);
-            const finalResponse = adjustShapePositions(fixedResponse); // Call the new function here
-            console.log('Final Lucid Chart Data:', JSON.stringify(finalResponse, null, 2)?.substring(0, 200) || "undefined");
-            return finalResponse;
+            let parsedResponse = JSON.parse(lucidChartResponse.functionCall.arguments);
+            parsedResponse = adjustSwimlaneDimensions(parsedResponse);
+            parsedResponse = fixLucidChartData(parsedResponse);
+            parsedResponse = adjustShapePositions(parsedResponse);
+            parsedResponse = adjustConnections(parsedResponse);
+            console.log('Final Lucid Chart Data:', JSON.stringify(parsedResponse, null, 2)?.substring(0, 200) || "undefined");
+            return parsedResponse;
         } catch (error) {
             console.error('Error parsing, adjusting, or fixing OpenAI response:', error);
             throw new Error(`Failed to process OpenAI response: ${error.message}`);
@@ -386,7 +386,10 @@ function fixLucidChartData(chartData) {
     return chartData;
   }
   
-// New function to adjust shape positions within lanes
+// File: src/services/lucidChartGenerator.js
+// Copyright (c) 2024 ZyptAI, tim.barrow@zyptai.com
+// This software is proprietary to ZyptAI.
+
 function adjustShapePositions(chartData) {
     const swimlane = chartData.pages[0].shapes.find(shape => shape.type === "swimLanes");
     if (!swimlane) {
@@ -394,47 +397,117 @@ function adjustShapePositions(chartData) {
         return chartData;
     }
 
-    const swimlaneX = swimlane.boundingBox.x;
-    const swimlaneWidth = swimlane.boundingBox.w;
-    const titleBarWidth = swimlane.titleBar && swimlane.titleBar.height ? swimlane.titleBar.height : 0;
+    const shapes = chartData.pages[0].shapes.filter(shape => shape.type !== "swimLanes");
+    
+    // Calculate the number of unique positions
+    const positions = new Set(shapes.map(shape => {
+        const match = shape.text.match(/\[Position:(\d+)\]/);
+        return match ? parseInt(match[1]) : 0;
+    }));
+    const numPositions = Math.max(...positions);
 
-    const padding = 10; // Adjust as needed
-    const availableWidth = swimlaneWidth - titleBarWidth - 2 * padding;
+    // Define constants
+    const DEFAULT_WIDTH = 800;
+    const MIN_POSITIONS = 4;
+    const SHAPE_WIDTH = 160;
+    const SHAPE_HEIGHT = 60;
+    const SHAPE_BUFFER = 40;
+    const LANE_PADDING = 20;
 
-    // Extract positions and find the maximum
-    const positions = chartData.pages[0].shapes
-        .filter(shape => shape.type !== "swimLanes")
-        .map(shape => {
-            const match = shape.text.match(/\[Position:(\d+)\]/);
-            return match ? parseInt(match[1]) : 0;
-        });
-    const maxPosition = Math.max(...positions);
+    // Calculate new swimlane width
+    let swimlaneWidth = DEFAULT_WIDTH;
+    if (numPositions > MIN_POSITIONS) {
+        swimlaneWidth = (SHAPE_WIDTH + SHAPE_BUFFER) * numPositions + LANE_PADDING * 2;
+    }
 
-    // Calculate width for each position
-    const positionWidth = availableWidth / maxPosition;
+    // Update swimlane bounding box width
+    swimlane.boundingBox.w = swimlaneWidth;
+
+    // Calculate swimlane height based on sum of lane widths
+    const swimlaneHeight = swimlane.lanes.reduce((sum, lane) => sum + lane.width, 0);
+    swimlane.boundingBox.h = swimlaneHeight;
+
+    // Calculate the maximum width of swimlane titles
+    const maxTitleWidth = Math.max(...swimlane.lanes.map(lane => {
+        const titleText = lane.title.match(/>([^<]+)</)[1];
+        return titleText.length * 8; // Assuming 8 pixels per character on average
+    }));
+
+    const titleBarWidth = Math.max(
+        swimlane.titleBar && swimlane.titleBar.height ? swimlane.titleBar.height : 0,
+        maxTitleWidth
+    );
 
     // Adjust shapes
-    chartData.pages[0].shapes.forEach(shape => {
-        if (shape.type === "swimLanes") return;
+    let currentY = swimlane.boundingBox.y;
+    swimlane.lanes.forEach((lane) => {
+        const shapesInLane = shapes.filter(shape => shape.laneId === lane.id);
+        shapesInLane.forEach((shape) => {
+            const match = shape.text.match(/\[Position:(\d+)\]/);
+            if (match) {
+                const position = parseInt(match[1]);
 
-        // Extract position from text
-        const match = shape.text.match(/\[Position:(\d+)\]\s*(.*)/);
-        if (match) {
-            const position = parseInt(match[1]);
-            const cleanText = match[2];
+                // Calculate new x position
+                const newX = swimlane.boundingBox.x + titleBarWidth + LANE_PADDING + 
+                             (position - 1) * (SHAPE_WIDTH + SHAPE_BUFFER) + 
+                             (SHAPE_WIDTH + SHAPE_BUFFER) / 2 - SHAPE_WIDTH / 2;
 
-            // Calculate new x position
-            const newX = swimlaneX + titleBarWidth + padding + (position - 1) * positionWidth + positionWidth / 2 - shape.boundingBox.w / 2;
+                // Calculate new y position
+                const newY = currentY + (lane.width - SHAPE_HEIGHT) / 2;
 
-            // Update shape
-            shape.boundingBox.x = Math.round(newX);
-            //shape.text = cleanText; // Remove position info from text
-        }
+                // Update shape
+                shape.boundingBox.x = Math.round(newX);
+                shape.boundingBox.y = Math.round(newY);
+                shape.boundingBox.w = SHAPE_WIDTH;
+                shape.boundingBox.h = SHAPE_HEIGHT;
+
+                // Remove position indicator from shape text
+                shape.text = shape.text.replace(/\[Position:\d+\]\s*/, "");
+            }
+        });
+        currentY += lane.width;
     });
 
-    console.log('Shapes repositioned based on their positions');
+    console.log(`Swimlane dimensions adjusted to ${swimlaneWidth}x${swimlaneHeight}. Shapes repositioned accordingly.`);
     return chartData;
 }
 
+function adjustConnections(chartData) {
+    const swimlane = chartData.pages[0].shapes.find(shape => shape.type === "swimLanes");
+    const shapes = chartData.pages[0].shapes.filter(shape => shape.type !== "swimLanes");
+    
+    chartData.pages[0].lines.forEach(line => {
+        const sourceShape = shapes.find(shape => shape.id === line.endpoint1.shapeId);
+        const targetShape = shapes.find(shape => shape.id === line.endpoint2.shapeId);
+        
+        if (sourceShape && targetShape) {
+            const sourceLane = swimlane.lanes.findIndex(lane => lane.id === sourceShape.laneId);
+            const targetLane = swimlane.lanes.findIndex(lane => lane.id === targetShape.laneId);
+            
+            if (sourceLane < targetLane) {
+                // Different lanes, source in higher lane
+                line.endpoint1.position = { x: 0.5, y: 1 };  // bottom center
+                line.endpoint2.position = { x: 0.5, y: 0 };  // top center
+            } else if (sourceLane === targetLane) {
+                // Same lane
+                line.endpoint1.position = { x: 1, y: 0.5 };  // right center
+                line.endpoint2.position = { x: 0, y: 0.5 };  // left center
+            } else {
+                console.warn(`Unexpected lane order: ${sourceLane} to ${targetLane}`);
+                line.endpoint1.position = { x: 0.5, y: 0 };  // top center
+                line.endpoint2.position = { x: 0.5, y: 1 };  // bottom center
+            }
+        } else {
+            console.warn(`Could not find shapes for connection: ${line.id}`);
+            // Remove the invalid connection
+            const index = chartData.pages[0].lines.indexOf(line);
+            if (index > -1) {
+                chartData.pages[0].lines.splice(index, 1);
+            }
+        }
+    });
+
+    return chartData;
+}
 
 module.exports = { generateLucidChartData };

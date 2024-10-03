@@ -42,17 +42,45 @@ Create a comprehensive list to represent the process in a swimlane diagram, ensu
 
 - **Positioning:**
   - **Determine Positions:**
-    - Identify the swimlane with the highest number of shapes. Let this number be \`n\`.
-    - Assign each shape within a swimlane a unique \`position\` number from \`1\` to \`n\`.
-    - For swimlanes with fewer than \`n\` shapes, assign positions based on the shape's order in the overall process:
-      - **Early Steps:** Assign lower position numbers.
-      - **Middle Steps:** Assign middle position numbers.
-      - **End Steps:** Assign higher position numbers.
-  - **Ensure No Overlapping Positions:**
-    - Each swimlane must have only one shape per position number.
-    - Position \`1\` should correspond to the leftmost placement within the swimlane.
-    - Position \`n\` should correspond to the rightmost placement within the swimlane.
-    - Positions in between should be evenly spaced.
+    - Analyze the entire process flow across all swimlanes to determine the logical sequence of steps.
+    - Aim for 5 to 8 positions for most charts, considering the overall process complexity.  Charts with less than 5 shapes can have a position per shape.
+    - Assign each shape a unique "position" number based on its place in the logical sequence, not just within its lane.
+  - **Position Distribution:**
+    - Ensure positions reflect the logical flow of the process across all swimlanes.
+    - Aim to use all available positions (5 to 8) to spread out the shapes evenly.
+    - No more than 25% of the total shapes should be in a single position.
+    - If there are 5 or fewer shapes in total, each shape should have a unique position.
+  - **Cross-Lane Positioning:**
+    - Consider dependencies between shapes in different lanes when assigning positions.
+    - A shape's position should generally be greater than or equal to the positions of its predecessors, even if they are in different lanes.
+  - **Ensure Balanced Distribution:**
+    - Position "1" should correspond to the leftmost placement within the chart.
+    - The highest position number should correspond to the rightmost placement.
+    - Distribute shapes evenly across the available positions.
+  - **Logical Flow:**
+    1. Steps that are directly connected should have consecutive or nearby position numbers when possible.
+    2. If a step has multiple predecessors, its position number should be greater than the highest position number among its predecessors.
+    3. Steps without predecessors should start at lower positions in their respective lanes, but not necessarily all at position 1.
+    4. Position numbers should generally increase from left to right in the overall process flow.
+  - **Avoid Overcrowding:**
+    - If multiple shapes could logically share the same position, consider spreading them to adjacent positions for better visual clarity.
+    - For parallel processes or decisions, use adjacent positions rather than the same position.
+  - **Handling Complex Flows:**
+    - For processes with many parallel or branching paths, prioritize clarity of flow over strict adherence to left-to-right progression.
+    - Use positions strategically to show relationships between steps across different swimlanes.
+  
+    - **Logical Flow:**
+    1. Ensure that predecessor steps always have position numbers less than or equal to their successors.
+    2. Steps that are directly connected should have consecutive or nearby position numbers when possible.
+    3. If a step has multiple predecessors, its position number should be greater than the highest position number among its predecessors.
+    4. Steps without predecessors should start at lower positions (but not necessarily all at position 1) in their respective lanes.
+    5. Position numbers should generally increase from left to right in the process flow.
+  - **Avoid Overcrowding:**
+    - If multiple shapes in a lane could logically share the same position, consider spreading them to adjacent positions for better visual clarity.
+    - For parallel processes or decisions, use adjacent positions rather than the same position.
+  - **Handling Complex Flows:**
+    - For processes with many parallel or branching paths, prioritize clarity of flow over strict adherence to left-to-right progression.
+    - Use positions strategically to show relationships between steps across different swimlanes.
 
 #### Line Connectors:
 - Describe how each step connects to the next using line connectors.
